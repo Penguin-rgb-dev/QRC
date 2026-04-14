@@ -1,9 +1,13 @@
 import numpy as np
 from scipy.linalg import eigh
-from sklearn.linear_model import LinearRegression, Ridge
+from sklearn.linear_model import LinearRegression
 from Models import get_Pauli_X, get_Pauli_Z, Ising
 from Density_matrix import trace_1, mixed_density_matrix
-import sys
+import time
+import tracemalloc
+
+tracemalloc.start()
+start_time = time.perf_counter()
 
 
 # --- 1. Parameters ---
@@ -14,7 +18,6 @@ tau = 4        # Total time per step
 V = 10         # Internal time steps (sub-sampling)
 seed = 42
 rng = np.random.default_rng(seed)
-use_stabilization=True
 
 # --- 2. Mackey-Glass Data Generation ---
 sigma, tau_MG, steps = 0.1, 17, 140000
@@ -33,9 +36,7 @@ y = np.zeros(int(len(A)/10))
 for k in range(len(y)):
     y[k] = A[k*10]
 y = (y - min(y))/(max(y)-min(y))
-if use_stabilization: 
-    # y in [0.1,0.9]
-    y = 0.1 + 0.8*y 
+y = 0.1 + 0.8*y # y is now with in [0.1,0.9]
 print(f"y_max = {max(y)}; y_min = {min(y)}")
 washout_len, train_len, test_len = 1000, 10000, 2000
 s_washout = y[:washout_len]
@@ -109,11 +110,7 @@ for k in range(train_len):
 X_features = (X_features + 1) / 2
 X_features += rng.uniform(-1e-5, 1e-5, X_features.shape)
 
-if use_stabilization:
-    model = Ridge(alpha=1e-4).fit(X_features, y_train)
-else:
-    model = LinearRegression().fit(X_features, y_train)
-
+model = LinearRegression().fit(X_features, y_train)
 print("Training Complete.")
 
 # --- 6. Evaluation Phase (One-step-ahead Prediction) ---
@@ -138,9 +135,17 @@ for i in range(1, test_len):
     # Check for divergence
     if not (0 <= y_pred[i] <= 1):
         print(f"Warning: Divergence detected at step {i}")
-        sys.exit()
+        break
 
 ## NMSE
 NMSE_val = np.sum((y_pred-y[washout_len+train_len:washout_len+train_len+test_len])**2)/np.sum(y[washout_len+train_len:washout_len+train_len+test_len:]**2)
 print('NMSE_val =', NMSE_val)
 print(f"Simulation Finished. Prediction range: {y_pred.min():.3f} to {y_pred.max():.3f}")
+
+end_time = time.perf_counter()
+current, peak = tracemalloc.get_traced_memory()
+tracemalloc.stop()
+
+print(f"Total time: {end_time-start_time:.4f}s")
+print(f"Peak RAM: {peak/10**6:.2f} MB")
+print(f"Current RAM: {current/10**6:.2f} MB")
