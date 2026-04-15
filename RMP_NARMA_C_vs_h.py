@@ -1,4 +1,6 @@
-## Trying joblib for NARMA using RMP and ED.
+# NARMA task with delay 10, with RMP.
+# Optmized.
+# C v/s h
 
 import os
 from joblib import Parallel, delayed

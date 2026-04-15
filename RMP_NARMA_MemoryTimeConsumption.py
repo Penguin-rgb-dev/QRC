@@ -1,6 +1,6 @@
-## Improved code
-## Testing time required for one realization and one parameter set.
-## NARMA Task for delay=10, scanning over values of h.
+# NARMA task with delay 10, with RMP.
+# Optimized.
+# Memory and time consumption calculated.
 
 import time
 import tracemalloc
