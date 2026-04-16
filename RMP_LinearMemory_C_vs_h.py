@@ -2,6 +2,7 @@
 # Optmized
 # C v/s h
 
+import resource
 import os
 from joblib import Parallel, delayed
 import numpy as np
@@ -94,38 +95,68 @@ def run_simulation(h_val, seed):
     return (cov[0, 1]**2) / (cov[0, 0] * cov[1, 1])
 
 # --- 3. PARAMETER SCAN SETUP ---
-h_values = np.logspace(-2, 2, 20)
+h_values = np.logspace(-2, 2, 50)
 n_realizations = 100 
 # Create a flat list of (h, seed) tuples
-tasks = [(h, seed) for h in h_values for seed in range(n_realizations)]
+seed_values = range(n_realizations)
 
 # --- 4. PARALLEL EXECUTION ---
-# results will be a flat list of length (20 * 100 = 2000)
 n_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK', 1))
 print(f"Running in parallel with {n_cpus} CPUs")
-results_flat = Parallel(n_jobs=n_cpus)(
-    delayed(run_simulation)(h, seed) for h, seed in tasks
-)
+
+results_flat = []
+chunk_size = 5    # Process 5 h-values at a time (5 * 100 = 500 simulations per checkpoint)
+total_h = len(h_values)
+
+for i in range(0, total_h, chunk_size):
+    current_chunk_h = h_values[i : i + chunk_size]
+
+    print(f"--- Starting Batch: h-indices {i} to {i + len(current_chunk_h) - 1} ---")
+
+    # This nested list comprehension is correct, it produces:
+    # [ (h0,s0), (h0,s1)...(h0,s99), (h1,s0)... ]
+    chunk_results = Parallel(n_jobs=n_cpus)(
+        delayed(run_simulation)(h, seed) 
+        for h in current_chunk_h 
+        for seed in seed_values
+    )
+    
+    results_flat.extend(chunk_results)
+
+    # Use the unique name so you don't overwrite every time
+    checkpoint_name = f"checkpoint_h_index_{i}.npz"
+    np.savez_compressed(checkpoint_name, data=results_flat)
+    print(f"Successfully saved checkpoint: {checkpoint_name}")
 
 # --- 5. RESHAPE AND SAVE ---
-# Reshape to (number_of_h, number_of_realizations)
-results_matrix = np.array(results_flat).reshape(len(h_values), n_realizations)
+if len(results_flat) == len(h_values) * n_realizations:
+    results_matrix = np.array(results_flat).reshape(len(h_values), n_realizations)
+    
+    c_mean = np.mean(results_matrix, axis=1)
+    c_std = np.std(results_matrix, axis=1)
 
-# Calculate stats for plotting
-c_mean = np.mean(results_matrix, axis=1)
-c_std = np.std(results_matrix, axis=1)
+    np.savez_compressed(
+        'LinearMemory_Cvsh.npz',
+        h=h_values,
+        c_raw=results_matrix,
+        c_mean=c_mean,
+        c_std=c_std,
+        N_spins=N,
+        J=J,
+        tau=tau,
+        realizations=n_realizations,
+        model="Transverse-Field Fully-Connected Ising Model"
+    )
+    print("Simulation complete. Final data saved.")
+else:
+    print(f"Warning: Simulation ended early. Collected {len(results_flat)}/5000 results.")
+    # Optional: save whatever we managed to get
+    np.savez_compressed('PARTIAL_Final_Results.npz', data=results_flat)
 
-np.savez_compressed(
-    'LinearMemory_Cvsh.npz',
-    h=h_values,
-    c_raw=results_matrix,
-    c_mean=c_mean,
-    c_std=c_std,
-    N_spins=N,
-    J=J,
-    tau=tau,
-    realizations=n_realizations,
-    model="Transverse-Field Fully-Connected Ising Model"
-)
 
-print("Simulation complete. Data saved.")
+# Get peak memory usage in kilobytes
+usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+
+# Convert to Megabytes or Gigabytes
+print(f"--- Resource Usage Report ---")
+print(f"Peak Memory Usage: {usage / 1024:.2f} MB")
