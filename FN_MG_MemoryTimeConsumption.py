@@ -5,7 +5,7 @@
 
 import numpy as np
 from scipy.linalg import eigh
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, Ridge
 from Models import get_Pauli_X, get_Pauli_Z, Ising
 from Density_matrix import trace_1, mixed_density_matrix
 import time
@@ -115,7 +115,7 @@ for k in range(train_len):
 X_features = (X_features + 1) / 2
 X_features += rng.uniform(-1e-5, 1e-5, X_features.shape)
 
-model = LinearRegression().fit(X_features, y_train)
+model = Ridge(alpha=1e-4).fit(X_features, y_train)
 print("Training Complete.")
 
 # --- 6. Evaluation Phase (One-step-ahead Prediction) ---
