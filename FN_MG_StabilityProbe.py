@@ -10,6 +10,7 @@ from scipy.linalg import eigh
 from sklearn.linear_model import LinearRegression, Ridge
 from Models import get_Pauli_X, get_Pauli_Z, Ising
 from Density_matrix import trace_1, mixed_density_matrix
+import resource
 
 # --- 1. Simulation Logic ---
 def run_stability_test(seed, use_margin=True, use_Ridge=True):
@@ -155,3 +156,10 @@ if __name__ == "__main__":
     print(f"Successful Runs:   {success_count}")
     print(f"Divergence Rate:   {(n_realisations - success_count) / n_realisations:.2%}")
     print(f"Success Fraction:   {success_count / n_realisations:.2%}")
+
+    # Get peak memory usage in kilobytes
+    usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+
+    # Convert to Megabytes or Gigabytes
+    print(f"--- Resource Usage Report ---")
+    print(f"Peak Memory Usage: {usage / 1024:.2f} MB")
