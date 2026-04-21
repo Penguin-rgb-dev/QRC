@@ -1,0 +1,17 @@
+#Submit a job via slurm script
+sbatch submit.sh
+
+# Check the status of all the nodes
+sinfo
+
+#check the status of all running jobs
+squeue
+
+# status of the user's job
+squeue --me
+
+# details like time taken by a job after it is complete
+sacct -j <jobID> --format=JobID,JobName,MaxRSS,Elapsed,State
+
+#Copy
+cp original_file_name new_file_name
