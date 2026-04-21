@@ -139,7 +139,7 @@ if len(results_flat) == len(h_values) * n_realizations:
     c_std = np.std(results_matrix, axis=1)
 
     np.savez_compressed(
-        'LinearMemory_Cvsh.npz',
+        'NARMA_Cvsh.npz',
         h=h_values,
         c_raw=results_matrix,
         c_mean=c_mean,
