@@ -52,7 +52,9 @@ def get_ZZ(N, z_ops):
 
 # --- Optimized Hamiltonian Functions ---
 
-def Ising(N, K, h, rng, x_ops=None, z_ops=None):
+import numpy as np
+
+def Ising(N, K, h, rng, x_ops=None, z_ops=None, disorder=False, D=0):
     """
     Constructs a Hermitian Transverse Field Ising Hamiltonian.
     """
@@ -61,23 +63,39 @@ def Ising(N, K, h, rng, x_ops=None, z_ops=None):
     
     # Weights matrix J is real and symmetric
     W = J_matrix(N, -K/2, K/2, rng)
-    
-    # Initialize as complex to support general solvers
+
     dim = 2**N
     H = np.zeros((dim, dim), dtype=complex)
     
-    # Interaction terms: J_ij * Xi * Xj
+    # ---------------------------------------------------------
+    # 1. INTERACTION TERMS (Optimized from O(N^2) matmuls to N)
+    # ---------------------------------------------------------
     for i in range(N):
-        for j in range(i + 1, N):
-            # Since X is Hermitian, X @ X is Hermitian
-            H += W[i, j] * (x_ops[i] @ x_ops[j])
-                
-    # External field terms: h * Zi
-    for i in range(N):
-        H += h * z_ops[i]
+        # Accumulate the scalar-matrix additions first (computationally cheap)
+        V_i = np.zeros((dim, dim), dtype=complex)
+        for j in range(N):
+            if i != j:
+                V_i += W[i, j] * x_ops[j]
         
-    # Numerical safety: Force Hermiticity H = (H + H_dagger) / 2
-    # This cancels out tiny rounding errors in the imaginary parts
+        # Perform the expensive matrix multiplication only ONCE per site
+        H += x_ops[i] @ V_i
+
+    # Divide by 2 because the logic above double-counts pairs (i,j) and (j,i)
+    H /= 2
+
+    # ---------------------------------------------------------
+    # 2. EXTERNAL FIELD TERMS
+    # ---------------------------------------------------------
+    # Pre-calculate the field strengths for all sites cleanly
+    fields = h + rng.uniform(-D, D, N) if disorder else [h] * N
+        
+    for i in range(N):
+        H += fields[i] * z_ops[i]
+            
+    # ---------------------------------------------------------
+    # 3. NUMERICAL SAFETY
+    # ---------------------------------------------------------
+    # Force Hermiticity to cancel out tiny rounding errors
     H = (H + H.conj().T) / 2
         
     return H, W
@@ -106,7 +124,7 @@ def Heisenberg(N, K, h, rng, x_ops=None, y_ops=None, z_ops=None):
         H -= h * z_ops[i]
         
     # Final Hermitian enforcement
-    H = (H + H.conj().T) / 2
+    H = (H + H.T) / 2
     return H, W
 
 #---------------------------------xxxxxxxxxxxxxxxxxxxxxxxxxxxxx-------------------------------------------------------------
