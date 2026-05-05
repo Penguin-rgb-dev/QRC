@@ -171,8 +171,9 @@ train_loader = DataLoader(dataset, batch_size=32, shuffle=True)
 # Hyperparameters
 num_epochs = 100
 
-model.train() # Set model to training mode
+
 for epoch in range(num_epochs):
+    model.train() # Set model to training mode
     epoch_loss = 0.0
     for batch_X, batch_y in train_loader:
         # 1. Forward pass
@@ -194,6 +195,8 @@ for epoch in range(num_epochs):
     
     if (epoch + 1) % 10 == 0:
         print(f"Epoch {epoch+1}: Train Loss: {epoch_loss/len(train_loader):.4f} | Val Loss: {val_loss.item():.4f}")
+
+#torch.save(model.state_dict(), 'Data/mlp_weights.pth')
 
 # Usage:
 #new_reservoir_state = X_features[0] # Just an example sample
