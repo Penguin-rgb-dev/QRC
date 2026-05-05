@@ -19,7 +19,7 @@ def run_simulation(h,W,seed):
     J_ij = J_matrix(N,-J/2,J/2,rng)
     D_i = rng.uniform(-W,W,N)
     J_zz = [[J_ij[i,j],i,j] for i in range(N-1) for j in range(i+1,N)]
-    h_x = [[h+D_i[i],i] for i in range(N)]
+    h_x = [[0.5*(h+D_i[i]),i] for i in range(N)]
     ## Static and dynamic lists
     static = [["zz",J_zz],["x",h_x]]
     dynamic = []
@@ -40,9 +40,9 @@ if __name__ == "__main__":
     n_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK',1))
 
     results_flat = Parallel(n_jobs=n_cpus)(delayed(run_simulation)(h,W,seed) for h in values for W in values for seed in seeds)
-    results = results_flat.reshape(len(values),len(values),n_realizations)
+    results = np.array(results_flat).reshape(len(values),len(values),n_realizations)
     results_mean = np.mean(results,axis=2)
-    np.savez_compressed('Phase_plot.npz',r_mean=results_mean,  N_spins=N, J=J, model='Fully Connected TFIM')
+    np.savez_compressed('Phase_plot.npz',r_mean=results_mean, h_values=values, W_values=values,  N_spins=N, J=J, model='Fully Connected TFIM')
 
     usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
     
