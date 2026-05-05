@@ -10,6 +10,7 @@ from Models import get_Pauli_X, get_Pauli_Z, Ising
 from Density_matrix import trace_1, mixed_density_matrix
 import time
 import tracemalloc
+import joblib
 
 tracemalloc.start()
 start_time = time.perf_counter()
@@ -116,6 +117,8 @@ X_features = (X_features + 1) / 2
 X_features += rng.uniform(-1e-5, 1e-5, X_features.shape)
 
 model = Ridge(alpha=1e-4).fit(X_features, y_train)
+#model = LinearRegression().fit(X_features,y_train)
+#joblib.dump(model, 'Data/linear_regression_model.pkl')
 print("Training Complete.")
 
 # --- 6. Evaluation Phase (One-step-ahead Prediction) ---
