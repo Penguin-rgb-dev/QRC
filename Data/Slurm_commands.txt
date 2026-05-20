@@ -15,3 +15,6 @@ sacct -j <jobID> --format=JobID,JobName,MaxRSS,Elapsed,State
 
 #Copy
 cp original_file_name new_file_name
+
+#How to check QOS limits
+sacctmgr show qos long format=Name,MaxWall,MaxTRESpu
