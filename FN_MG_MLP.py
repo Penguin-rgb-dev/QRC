@@ -169,7 +169,7 @@ dataset = TensorDataset(X_train_tensor, y_train_tensor)
 train_loader = DataLoader(dataset, batch_size=32, shuffle=True)
 
 # Hyperparameters
-num_epochs = 2000
+num_epochs = 500
 
 
 for epoch in range(num_epochs):
