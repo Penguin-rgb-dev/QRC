@@ -32,7 +32,7 @@ y_train = y[washout:washout+train]
 y_test = y[washout+train:washout+train+test]
 
 # --- 2. MODEL SETUP ---
-N, J, h_val, tau = 10, 1, 0.1, 10
+N, J, h_val, tau = 10, 1, 0.1*0.5, 10
 x_ops = get_Pauli_X(N)
 y_ops = get_Pauli_Y(N)
 z_ops = get_Pauli_Z(N)
