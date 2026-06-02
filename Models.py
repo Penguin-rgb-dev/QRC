@@ -11,6 +11,7 @@
 
 import numpy as np
 from scipy.linalg import expm
+from quspin.operators import hamiltonian
 
 # --- Helper for Identity ---
 def I(i): 
@@ -98,6 +99,34 @@ def Ising(N, K, h, rng, x_ops=None, z_ops=None, disorder=False, D=0):
     # Force Hermiticity to cancel out tiny rounding errors
     H = (H + H.conj().T) / 2
         
+    return H, W
+
+def Ising_1DNN(N, K, h, rng):
+    # 1. Generate random coupling weights
+    W = rng.uniform(low=-K/2, high=K/2, size=N)
+    
+    # 2. Define the interaction terms (X_i X_{i+1}) with Periodic Boundary Conditions
+    # Format: [[weight, site_i, site_j], ...]
+    x_interactions = [[W[i], i, (i + 1) % N] for i in range(N)]
+    
+    # 3. Define the transverse field terms (Z_i)
+    # Format: [[weight, site_i], ...]
+    z_fields = [[h, i] for i in range(N)]
+    
+    # 4. Construct operator lists for QuSpin
+    # 'xx' means product of two X operators, 'z' means single Z operator
+    static_list = [
+        ["xx", x_interactions],
+        ["z", z_fields]
+    ]
+    
+    # 5. Build the Hamiltonian as a sparse matrix
+    # check_herm=False and check_pcon=False speed up initialization
+    H = hamiltonian(static_list, [], N=N, dtype=np.float64, 
+                    check_herm=False, check_pcon=False)
+    
+    # Returns a QuSpin object. You can get the sparse matrix via H.tocsr() 
+    # or get its eigenvalues directly using H.eigsh()
     return H, W
 
 def Heisenberg(N, K, h, rng, x_ops=None, y_ops=None, z_ops=None):
@@ -189,16 +218,7 @@ def Mixed_Heisenberg(N,K,h):   #Weights are in the range (0,K); mag. field = h
     return H, W
 
 
-def Ising_1DNN(N,K,h):  #Weights are in the range (-K/2,K/2)
-    x = X(N)
-    z = Z(N)
-    W = J(N,-K/2,K/2)
-    H = np.zeros([2**N,2**N])
-    for i in range(N - 1):
-        H = H + W[i][i + 1] * x[i] @ x[i + 1]
-    for i in range(N):
-        H = H + h * z[i]
-    return H, W
+
 
 
 def Time_evolution_operator(H, time_step):
