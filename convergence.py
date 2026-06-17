@@ -12,7 +12,7 @@ from Density_matrix import trace_1, mixed_density_matrix
 
 # -- 1. Global Data Generation --
 rng_global = np.random.default_rng(seed=54)
-s = rng_global.uniform(200)
+s = rng_global.uniform(low=0,high=1,size=200)
 n_spins,J_val,tau_val = 10,1,10
 
 
@@ -21,12 +21,12 @@ def norm(A,B):
     C = A-B
     return np.sqrt(np.real(np.trace(C.conj().T @ C)))
 
-def generate_states():
-      N=10
+def generate_states(seed=32):
+      N=n_spins
       J = 1
       h = 0.05
       tau = 10
-      rng = np.random.default_rng(seed=54)
+      rng = np.random.default_rng(seed=seed)
       s = rng.uniform(low=0,high=1,size=24)
       rho_a = mixed_density_matrix(10,2,N,rng)
       rho_b = mixed_density_matrix(10,2,N,rng)
@@ -63,11 +63,11 @@ rho_a, rho_b = generate_states()
 
 
 # -- 3. defining the simulation function --
-def run_simulation(W,h,seed,N=n_spins,J=J_val,tau=tau_val):    
-    rng_local = np.uniform.default_rng(seed)
-    Hamiltonian, _ = Ising(N,J,h=h,rng=rng_local,x_ops=x_ops,z_ops=z_ops,disorder=True,D=W)
+def run_simulation(W,h,seed,N=n_spins,J=J_val,tau=tau_val,rho_a=rho_a,rho_b=rho_b,s=s):    
+    rng_local = np.random.default_rng(seed)
     x_ops = get_Pauli_X(N)
     z_ops = get_Pauli_Z(N)
+    Hamiltonian, _ = Ising(N,J,h=h,rng=rng_local,x_ops=x_ops,z_ops=z_ops,disorder=True,D=W)   
     E, U = eigh(Hamiltonian)
     U_dag = U.conj().T
     phase_mat = np.exp(-1j * (E[:, np.newaxis] - E[np.newaxis, :]) * tau)
@@ -111,3 +111,10 @@ np.savez_compressed('Convergence_plot.npz',
                     n_spins = n_spins, 
                     J_val = J_val, 
                     tau_val = tau_val)
+
+# Get peak memory usage in kilobytes
+usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+
+# Convert to Megabytes or Gigabytes
+print(f"--- Resource Usage Report ---")
+print(f"Peak Memory Usage: {usage / 1024:.2f} MB")
