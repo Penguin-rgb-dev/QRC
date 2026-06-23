@@ -156,6 +156,22 @@ def Heisenberg(N, K, h, rng, x_ops=None, y_ops=None, z_ops=None):
     H = (H + H.T) / 2
     return H, W
 
+def Heisenberg_1DNN(N,h,J,rng):
+    h_i = rng.uniform(low=-h,high=h,size=N)
+    x_interactions=[[J,i,i+1 % N] for i in range(N)]
+    y_interactions=[[J,i,i+1 % N] for i in range(N)]
+    z_interactions=[[J,i,i+1 % N] for i in range(N)]
+    z_fields = [[h_i[i],i] for i in range(N)]
+    static = [
+        ['xx',x_interactions],
+        ['yy',y_interactions],
+        ['zz',z_interactions],
+        ['z',z_fields]
+    ]
+    H = hamiltonian(static,[],check_herm=False,check_pcon=False)
+    return H, h_i
+
+
 #---------------------------------xxxxxxxxxxxxxxxxxxxxxxxxxxxxx-------------------------------------------------------------
 # This part needs to be updated.
 
