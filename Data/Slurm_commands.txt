@@ -18,3 +18,6 @@ cp original_file_name new_file_name
 
 #How to check QOS limits
 sacctmgr show qos long format=Name,MaxWall,MaxTRESpu
+
+# To check the priority score and its breakdown for all the pending jobs
+sprio
