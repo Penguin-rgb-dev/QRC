@@ -5,7 +5,7 @@ import tracemalloc
 import numpy as np
 from scipy.linalg import eigh
 from sklearn.linear_model import LinearRegression
-from Models import get_Pauli_X, get_Pauli_Y, get_Pauli_Z, get_ZZ, Heisenberg_1DNN
+from Models import get_Pauli_X, get_Pauli_Y, get_Pauli_Z, get_XX, get_YY, get_ZZ, Heisenberg_1DNN
 from Density_matrix import trace_1, mixed_density_matrix
 
 
@@ -45,8 +45,10 @@ phase_mat = np.exp(-1j * (E[:, np.newaxis] - E[np.newaxis, :]) * tau)
 x_ops = get_Pauli_X(N)
 y_ops = get_Pauli_Y(N)
 z_ops = get_Pauli_Z(N)
+xx_ops = get_XX(N,x_ops)
+yy_ops = get_YY(N,y_ops)
 zz_ops = get_ZZ(N,z_ops)
-raw_obs = x_ops + y_ops + z_ops + zz_ops
+raw_obs = x_ops + y_ops + z_ops + xx_ops + yy_ops + zz_ops
 obs_matrix = np.array([o.flatten() for o in raw_obs]) 
 
 def get_features(rho_matrix):

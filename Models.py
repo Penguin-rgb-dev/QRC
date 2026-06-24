@@ -44,6 +44,22 @@ def get_Pauli_Z(N):
     z = np.array([[1, 0], [0, -1]], dtype=complex)
     return [np.kron(np.kron(I(i), z), I(N-i-1)) for i in range(N)]
 
+def get_XX(N, x_ops):
+    # Instead of re-calculating, we use the pre-calculated Z operators
+    xx = []
+    for i in range(N):
+        for j in range(i + 1, N):
+            xx.append(x_ops[i] @ x_ops[j])
+    return xx
+
+def get_YY(N, y_ops):
+    # Instead of re-calculating, we use the pre-calculated Z operators
+    yy = []
+    for i in range(N):
+        for j in range(i + 1, N):
+            yy.append(y_ops[i] @ y_ops[j])
+    return yy
+
 def get_ZZ(N, z_ops):
     # Instead of re-calculating, we use the pre-calculated Z operators
     zz = []
