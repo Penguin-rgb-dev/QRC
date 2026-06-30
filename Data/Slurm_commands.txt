@@ -21,3 +21,31 @@ sacctmgr show qos long format=Name,MaxWall,MaxTRESpu
 
 # To check the priority score and its breakdown for all the pending jobs
 sprio
+
+# Transfer file from HPC to the local machine
+scp divesh@172.27.36.235:/home/divesh/QRC/filename.ext filename.ext
+
+# Transfer multiple files to local machine
+Method 1
+scp 'divesh@172.27.36.235:/home/divesh/QRC/{filename1.ext,filename2.ext}' .
+
+Method 2 (use wildcard *)
+scp divesh@172.27.36.235:/home/divesh/QRC/convergence_plot_\*.npz .
+or
+scp divesh@172.27.36.235:/home/divesh/QRC/*.npz .
+
+Method 3 (copy entire directory)
+scp -r divesh@172.27.36.235:/home/divesh/QRC .
+
+# Transfer large files
+rsync -avzP divesh@172.27.36.235:/home/divesh/QRC/*.npz .
+
+# Tranfer to the HPC
+scp convergence_plot_1 divesh@172.27.36.235:/home/divesh/QRC
+
+# To run multiple scripts in slurm
+for script in script1.py script2.py script3.py; do
+    sbatch template.sh $script
+done
+
+and put $1 in place of the file name in the slurm script.
