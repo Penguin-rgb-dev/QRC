@@ -134,7 +134,7 @@ if len(results_flat) == len(h_values) * n_realizations:
 
     np.savez_compressed(
         'LinearMemory_Cvsh.npz',
-        h_values = np.logspace(-2,+2,50),
+        h_values = np.linspace(0,7,36)
         c_raw=results_matrix,
         c_mean=c_mean,
         c_std=c_std,
