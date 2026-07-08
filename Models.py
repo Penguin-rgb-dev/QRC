@@ -173,110 +173,93 @@ def Heisenberg(N, K, h, rng, x_ops=None, y_ops=None, z_ops=None):
     H = (H + H.T) / 2
     return H, W
 
-def Heisenberg_1DNN(N,h,J,rng):
-    h_i = rng.uniform(low=-h,high=h,size=N)
-    x_interactions=[[J,i,(i+1) % N] for i in range(N)]
-    y_interactions=[[J,i,(i+1) % N] for i in range(N)]
-    z_interactions=[[J,i,(i+1) % N] for i in range(N)]
-    z_fields = [[h_i[i],i] for i in range(N)]
-    static = [
-        ['xx',x_interactions],
-        ['yy',y_interactions],
-        ['zz',z_interactions],
-        ['z',z_fields]
-    ]
 
-    basis = spin_basis_1d(L=N)
-    H = hamiltonian(static,[],basis=basis,check_herm=False,check_pcon=False)
-    return H, h_i
+#def Heisenberg_1DNN(N,h,J,rng):
+#    h_i = rng.uniform(low=-h,high=h,size=N)
+#    x_interactions=[[J,i,(i+1) % N] for i in range(N)]
+#    y_interactions=[[J,i,(i+1) % N] for i in range(N)]
+#    z_interactions=[[J,i,(i+1) % N] for i in range(N)]
+#    z_fields = [[h_i[i],i] for i in range(N)]
+#    static = [
+#        ['xx',x_interactions],
+#        ['yy',y_interactions],
+#        ['zz',z_interactions],
+#        ['z',z_fields]
+#    ]
+#
+#    basis = spin_basis_1d(L=N)
+#    H = hamiltonian(static,[],basis=basis,check_herm=False,check_pcon=False)
+#    return H, h_i
+
+
 
 
 #---------------------------------xxxxxxxxxxxxxxxxxxxxxxxxxxxxx-------------------------------------------------------------
-# This part needs to be updated.
+ # ------ Various Hamiltonians using a different method. --------
+# integer to bit array
+def int_to_numpy_bit_array(number, width):
+    # Create an array of bit positions: [7, 6, 5, 4, 3, 2, 1, 0]
+    shift_amounts = np.arange(width - 1, -1, -1)
+    
+    # Shift the bits to the rightmost position and extract the lowest bit
+    return (number >> shift_amounts) & 1
 
+ # spin 1d basis
+def spin_basis_1D(n_spins):
+    dims = 2**n_spins
+    return int_to_numpy_bit_array(np.arange(dims).reshape(-1,1),width=n_spins)
 
-def Ferromagnetic_Heisenberg(N,K,h):   #Weights are in the range (0,K); mag. field = h
-    x = X(N)
-    y = Y(N)
-    z = Z(N)
-    W = J(N,0,K)
+# return the hamiltonian and the h_values for the Heisenberg_1DNN spin chain with periodic boundary conditions
+def Heisenberg_1DNN(N, J, h, basis, rng):
+    dims = 2**N
+    h_values = rng.uniform(-h, h, N)
 
-    H = np.zeros([2**N,2**N])
-    for i in range(N):
-        for j in range (N):
-            if j > i:
-                H = H - W[i][j]*(x[i]@x[j] + y[i]@y[j] + z[i]@z[j])
-            else:
-                continue
+    # 1. Filling the diagonals (Safely symmetrised against floating-point noise)
+    sign_matrix = (basis * 2 - 1) * -1
+    h_matrix = np.sum(sign_matrix * h_values, axis=1)
+    
+    # Vectorised boundary count we built earlier
+    rolled_basis = np.roll(basis, shift=-1, axis=1)
+    n_bound = np.sum(basis ^ rolled_basis, axis=1)
+    
+    diag_values = (N - 2 * n_bound) * J + h_matrix
+    
+    # Optional: Enforce exact structural symmetry across the diagonal if required
+    # max_val = dims - 1
+    # diag_values = (diag_values + diag_values[np.arange(dims) ^ max_val]) / 2
 
-    for i in range(N):
-        H = H - h*z[i]
+    H = np.zeros((dims, dims))
+    np.fill_diagonal(H, diag_values)
 
-    return H, W
-
-def Anti_Ferromagnetic_Heisenberg(N,K,h):   #Weights are in the range (0,K); mag. field = h
-    x = X(N)
-    y = Y(N)
-    z = Z(N)
-    W = J(N,0,K)
-
-    H = np.zeros([2**N,2**N])
-    for i in range(N):
-        for j in range (N):
-            if j > i:
-                H = H + W[i][j]*(x[i]@x[j] + y[i]@y[j] + z[i]@z[j])
-            else:
-                continue
-
-    for i in range(N):
-        H = H - h*z[i]
-
-    return H, W
-
-def Mixed_Heisenberg(N,K,h):   #Weights are in the range (0,K); mag. field = h
-    x = X(N)
-    y = Y(N)
-    z = Z(N)
-    W = J(N,-K/2,K/2)
-
-    H = np.zeros([2**N,2**N])
-    for i in range(N):
-        for j in range (N):
-            if j > i:
-                H = H - W[i][j]*(x[i]@x[j] + y[i]@y[j] + z[i]@z[j])
-            else:
-                continue
-
-    for i in range(N):
-        H = H - h*z[i]
-
-    return H, W
-
-
-
-
-
-def Time_evolution_operator(H, time_step):
-    return expm(-1j * H * time_step)
-
-def time_evolution(rho,H,T):
-    U = Time_evolution_operator(H, 1/10)
-    P = (rho,)
-    for i in range(10*T):
-        P = P + (U @ P[i] @ U.T.conj(),)
-
-    return P
-
-def getstate():
-    state = rng.getstate()
-    return state
-
-def setstate(x):
-    rng.setstate(x)
-
-def ran():
-    for i in range(5):
-        print(rng.random())
+    # 2. Filling the off-diagonals (Pure Vectorised Magic)
+    # Generate an array of all state indices: [0, 1, 2, ..., dims-1]
+    state_indices = np.arange(dims)
+    
+    for pos in range(N):
+        # We target a spin at 'pos' and its neighbor at '(pos + 1) % N'
+        next_pos = (pos + 1) % N
+        
+        # Create a mask for these two specific adjacent bit positions
+        # e.g., if pos=0 and next_pos=1, mask looks like binary ...0011 (decimal 3)
+        bond_mask = (1 << pos) | (1 << next_pos)
+        
+        # Check if the bits at these positions are opposite (one 0 and one 1)
+        # If we extract the two bits, their population count must be exactly 1
+        # A quick way: ((state >> pos) & 1) != ((state >> next_pos) & 1)
+        opposite_spins = ((state_indices >> pos) & 1) != ((state_indices >> next_pos) & 1)
+        
+        # For the states that have opposite spins on this bond, 
+        # flipping both bits gives the target connected state index
+        connected_indices = state_indices ^ bond_mask
+        
+        # Advanced indexing updates the off-diagonals instantly
+        # Filter only the valid states where a swap can actually occur
+        rows = state_indices[opposite_spins]
+        cols = connected_indices[opposite_spins]
+        
+        H[rows, cols] = 2 * J
+        
+    return H, h_values
 
 
 
