@@ -14,4 +14,4 @@ source activate quantum_env
 
 # 2. Run the script 
 # No 'export' needed here because you updated the .py file!
-python RMP_LinearMemory_C_vs_h.py
+python Heisenberg_1DNN_Cvh.py

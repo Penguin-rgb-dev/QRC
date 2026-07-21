@@ -31,12 +31,10 @@ y_test = y[washout+train:washout+train+test]
 
 # --- 2. MODEL SETUP ---
 N, J, h_val, tau = 10, 1, 0.5, 10
-Hamiltonian, _ = Heisenberg_1DNN(N,h_val,J,rng)
+Hamiltonian, _ = Heisenberg_1DNN(N,J,h_val,rng)
 #rho = mixed_density_matrix(10, 2, N, rng, complex_ensemble=True)
 rho = (1/2**N)*np.ones([2**N,2**N]) # maximally coherent initial state
-
-
-E, U = Hamiltonian.eigh()
+E, U = eigh(Hamiltonian)
 U_dag = U.conj().T
 phase_mat = np.exp(-1j * (E[:, np.newaxis] - E[np.newaxis, :]) * tau)
 

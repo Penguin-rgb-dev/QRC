@@ -8,7 +8,7 @@ import numpy as np
 from scipy.linalg import eigh
 from sklearn.linear_model import LinearRegression
 from Models import get_Pauli_X, get_Pauli_Y, get_Pauli_Z, get_ZZ, Heisenberg_1DNN 
-from Density_matrix import trace_1, mixed_density_matrix
+from Density_matrix import trace_1
 
 # --- 1. GLOBAL DATA GENERATION (NARMA) ---
 n = 10
@@ -44,8 +44,9 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau,rho=rho):
     local_rng = np.random.default_rng(seed)
     
     # --- 2.1. MODEL SETUP ---   
-    Hamiltonian, _ = Heisenberg_1DNN(N,h_val,J,rng=local_rng)
-    E, U = Hamiltonian.eigh()
+    Hamiltonian, _ = Heisenberg_1DNN(N,J,h_val,local_rng)
+    Hamiltonian = Hamiltonian.toarray()
+    E, U = eigh(Hamiltonian)
     U_dag = U.conj().T
     phase_mat = np.exp(-1j * (E[:, np.newaxis] - E[np.newaxis, :]) * tau)
 
@@ -97,7 +98,7 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau,rho=rho):
     return (cov[0, 1]**2) / (cov[0, 0] * cov[1, 1])
 
 # --- 3. PARAMETER SCAN SETUP ---
-h_values = np.logspace(-2, 2, 50)*0.5
+h_values = np.logspace(-2, 2, 60)
 n_realizations = 100 
 # Create a flat list of (h, seed) tuples
 seed_values = range(n_realizations)
@@ -106,53 +107,30 @@ seed_values = range(n_realizations)
 n_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK', 1))
 print(f"Running in parallel with {n_cpus} CPUs")
 
-results_flat = []
-chunk_size = 5    # Process 5 h-values at a time (5 * 100 = 500 simulations per checkpoint)
-total_W = len(h_values)
-
-for i in range(0, total_W, chunk_size):
-    current_chunk = h_values[i : i + chunk_size]
-
-    print(f"--- Starting Batch: h-indices {i} to {i + len(current_chunk) - 1} ---")
-
-    chunk_results = Parallel(n_jobs=n_cpus)(
-        delayed(run_simulation)(W, seed) 
-        for W in current_chunk 
+results_flat = Parallel(n_jobs=n_cpus)(
+        delayed(run_simulation)(h, seed) 
+        for h in h_values 
         for seed in seed_values
     )
+
+results_matrix = np.array(results_flat).reshape(len(h_values), n_realizations)
     
-    results_flat.extend(chunk_results)
+c_mean = np.mean(results_matrix, axis=1)
+c_se = np.std(results_matrix, axis=1, ddof=1) / np.sqrt(n_realizations)
 
-    # Use the unique name so you don't overwrite every time
-    checkpoint_name = f"LinearMemory_checkpoint_h_index_{i}.npz"
-    np.savez_compressed(checkpoint_name, data=results_flat)
-    print(f"Successfully saved checkpoint: {checkpoint_name}")
-
-# --- 5. RESHAPE AND SAVE ---
-if len(results_flat) == len(h_values) * n_realizations:
-    results_matrix = np.array(results_flat).reshape(len(h_values), n_realizations)
-    
-    c_mean = np.mean(results_matrix, axis=1)
-    c_std = np.std(results_matrix, axis=1)
-
-    np.savez_compressed(
-        'LinearMemory_Cvsh.npz',
-        h_values = np.logspace(-2,+2,50),
-        c_raw=results_matrix,
-        c_mean=c_mean,
-        c_std=c_std,
-        n_spins=N,
-        J_val=J,
-        tau_val=tau,
-        n_realizations=n_realizations,
-        model="1D Nearest Neighbor Transverse Field Ising Model"
-    )
-    print("Simulation complete. Final data saved.")
-else:
-    print(f"Warning: Simulation ended early. Collected {len(results_flat)}/{total_W*n_realizations} results.")
-    # Optional: save whatever we managed to get
-    np.savez_compressed('PARTIAL_Final_Results.npz', data=results_flat)
-
+np.savez_compressed(''
+    'results/Heisenberg_1DNN_NARMA_Cvh.npz',
+    h_values = h_values,
+    c_raw=results_matrix,
+    c_mean=c_mean,
+    c_se=c_se,
+    n_spins=N,
+    J_val=J,
+    tau_val=tau,
+    n_realizations=n_realizations,
+    model="Heisenberg 1-dimensional nearest neighbour"
+)
+print("Simulation complete. Final data saved.")
 
 # Get peak memory usage in kilobytes
 usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
@@ -160,3 +138,4 @@ usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 # Convert to Megabytes or Gigabytes
 print(f"--- Resource Usage Report ---")
 print(f"Peak Memory Usage: {usage / 1024:.2f} MB")
+

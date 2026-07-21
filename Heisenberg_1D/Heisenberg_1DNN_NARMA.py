@@ -33,13 +33,14 @@ y_train = y[washout:washout+train]
 y_test = y[washout+train:washout+train+test]
 
 # --- 2. MODEL SETUP ---
-N, J, h_val, tau = 10, 1, 0.5, 10
-Hamiltonian, _ = Heisenberg_1DNN(N,h_val,J,rng)
+N, J, h_val, tau = 10, 1, 6, 10
+Hamiltonian, _ = Heisenberg_1DNN(N,J,h_val,rng)
+Hamiltonian = Hamiltonian.toarray()
 #rho = mixed_density_matrix(10, 2, N, rng, complex_ensemble=True)
 rho = (1/2**N)*np.ones([2**N,2**N]) # maximally coherent initial state
 
 
-E, U = Hamiltonian.eigh()
+E, U = eigh(Hamiltonian)
 U_dag = U.conj().T
 phase_mat = np.exp(-1j * (E[:, np.newaxis] - E[np.newaxis, :]) * tau)
 
@@ -65,7 +66,7 @@ def evolve(rho_in, phase_mat):
 
 def input_map(rho_in, s, N):
     """Map input s to the first spin and trace out the rest using the module's reshape trick."""
-    psi_s = np.array([np.sqrt(1-s), np.sqrt(s)], dtype=complex)
+    psi_s = np.array([np.sqrt(s), np.sqrt(1-s)], dtype=complex)
     rho_s = np.outer(psi_s, psi_s.conj())
     # Use optimized partial trace from Density_matrix
     rho_rest = trace_1(rho_in, N)
