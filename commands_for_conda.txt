@@ -1,0 +1,22 @@
+# Some commands for conda
+
+# To create a new env
+conda create --name <environment name>
+
+# To activate the env
+conda activate <env name>
+
+# To deactivate
+conda deactivate
+
+# To install pip within an env
+conda install pip
+
+# To remove an env
+conda env remove --name <env name>
+
+# To install qiskit
+conda create --name  qiskit_env
+conda activate qiskit_env
+conda install pip
+conda install qiskit
