@@ -11,8 +11,10 @@
 
 import numpy as np
 from scipy.linalg import expm
-from quspin.operators import hamiltonian
-from quspin.basis import spin_basis_1d
+import scipy.sparse as sp
+
+#from quspin.operators import hamiltonian
+#from quspin.basis import spin_basis_1d
 
 # --- Helper for Identity ---
 def I(i): 
@@ -196,71 +198,142 @@ def Heisenberg(N, K, h, rng, x_ops=None, y_ops=None, z_ops=None):
 
 #---------------------------------xxxxxxxxxxxxxxxxxxxxxxxxxxxxx-------------------------------------------------------------
  # ------ Various Hamiltonians using a different method. --------
-# integer to bit array
-def int_to_numpy_bit_array(number, width):
-    # Create an array of bit positions: [7, 6, 5, 4, 3, 2, 1, 0]
-    shift_amounts = np.arange(width - 1, -1, -1)
+## Anti-ferromagnetic Heisenberg spin chain with site-disorder using magnetic field. (1DNN, SPARSE)
+def Heisenberg_1DNN(N, J, h, rng):
+    """
+    Generates the 1DNN Antiferromagnetic Heisenberg Hamiltonian with on-site
+    disorder and with periodic boundary conditions 
+    and random transverse/longitudinal fields using sparse COO/CSR matrices.
     
-    # Shift the bits to the rightmost position and extract the lowest bit
-    return (number >> shift_amounts) & 1
-
- # spin 1d basis
-def spin_basis_1D(n_spins):
-    dims = 2**n_spins
-    return int_to_numpy_bit_array(np.arange(dims).reshape(-1,1),width=n_spins)
-
-# return the hamiltonian and the h_values for the Heisenberg_1DNN spin chain with periodic boundary conditions
-def Heisenberg_1DNN(N, J, h, basis, rng):
-    dims = 2**N
+    Returns:
+        H (csr_matrix): Sparse Hamiltonian of shape (2^N, 2^N)
+        h_values (ndarray): Random field values drawn for each site
+    """
+    dims = 1 << N  # Equivalent to 2**N
+    states = np.arange(dims, dtype=np.int32)
     h_values = rng.uniform(-h, h, N)
 
-    # 1. Filling the diagonals (Safely symmetrised against floating-point noise)
-    sign_matrix = (basis * 2 - 1) * -1
-    h_matrix = np.sum(sign_matrix * h_values, axis=1)
+    # 1. DIAGONAL ELEMENTS (S_z S_z interaction + On-site Field)
+    # -----------------------------------------------------------
+    # Calculate S_z S_z term across all bonds using bitwise XOR:
+    # Bitwise XOR (state ^ (state shifted)) returns 1 where adjacent spins differ, 0 where same.
+    # Scale from {0, 1} to {-1, +1} mapping: S_i^z S_{i+1}^z = 1 - 2 * bit_diff
     
-    # Vectorised boundary count we built earlier
-    rolled_basis = np.roll(basis, shift=-1, axis=1)
-    n_bound = np.sum(basis ^ rolled_basis, axis=1)
-    
-    diag_values = (N - 2 * n_bound) * J + h_matrix
-    
-    # Optional: Enforce exact structural symmetry across the diagonal if required
-    # max_val = dims - 1
-    # diag_values = (diag_values + diag_values[np.arange(dims) ^ max_val]) / 2
-
-    H = np.zeros((dims, dims))
-    np.fill_diagonal(H, diag_values)
-
-    # 2. Filling the off-diagonals (Pure Vectorised Magic)
-    # Generate an array of all state indices: [0, 1, 2, ..., dims-1]
-    state_indices = np.arange(dims)
-    
+    sz_interaction = np.zeros(dims, dtype=np.float64)
     for pos in range(N):
-        # We target a spin at 'pos' and its neighbor at '(pos + 1) % N'
         next_pos = (pos + 1) % N
-        
-        # Create a mask for these two specific adjacent bit positions
-        # e.g., if pos=0 and next_pos=1, mask looks like binary ...0011 (decimal 3)
+        bit_diff = ((states >> pos) ^ (states >> next_pos)) & 1
+        sz_interaction += 0.25*(1 - 2 * bit_diff)
+    
+    # Calculate single-site S_z term: spin state 1 -> +0.5, 0 -> -0.5
+    # Vectorised sum across sites:
+    sz_site_sum = np.zeros(dims, dtype=np.float64)
+    for pos in range(N):
+        spin_dir = 0.5 - ((states >> pos) & 1)   # Map 0 -> -1, 1 -> +1
+        sz_site_sum += spin_dir * h_values[pos]
+
+    # Combine diagonal values (Assuming standard S=1/2 notation: J * S_i * S_j)
+    # Note: Adjust constant factors if using Pauli matrices vs Spin-1/2 operators
+    diag_values = J * sz_interaction + sz_site_sum
+
+    # 2. OFF-DIAGONAL ELEMENTS (Flip-flop S_i^+ S_j^- + S_i^- S_j^+)
+    # -----------------------------------------------------------
+    # Flips occur only when adjacent spins are opposite.
+    rows_list = []
+    cols_list = []
+
+    for pos in range(N):
+        next_pos = (pos + 1) % N
         bond_mask = (1 << pos) | (1 << next_pos)
         
-        # Check if the bits at these positions are opposite (one 0 and one 1)
-        # If we extract the two bits, their population count must be exactly 1
-        # A quick way: ((state >> pos) & 1) != ((state >> next_pos) & 1)
-        opposite_spins = ((state_indices >> pos) & 1) != ((state_indices >> next_pos) & 1)
+        # Check where spins differ on this bond
+        opposite_spins = (((states >> pos) ^ (states >> next_pos)) & 1).astype(bool)
         
-        # For the states that have opposite spins on this bond, 
-        # flipping both bits gives the target connected state index
-        connected_indices = state_indices ^ bond_mask
+        # Connected state index after flipping both bits
+        rows = states[opposite_spins]
+        cols = states[opposite_spins] ^ bond_mask
         
-        # Advanced indexing updates the off-diagonals instantly
-        # Filter only the valid states where a swap can actually occur
-        rows = state_indices[opposite_spins]
-        cols = connected_indices[opposite_spins]
-        
-        H[rows, cols] = 2 * J
-        
+        rows_list.append(rows)
+        cols_list.append(cols)
+
+    all_rows = np.concatenate(rows_list)
+    all_cols = np.concatenate(cols_list)
+    
+    # Each flip contributes 2 * J (or 0.5 * J depending on standard Pauli vs Spin-1/2 convention)
+    off_diag_data = np.full(len(all_rows), 0.5 * J, dtype=np.float64)
+
+    # 3. BUILD SPARSE MATRIX
+    # ----------------------
+    row_indices = np.concatenate([states, all_rows])
+    col_indices = np.concatenate([states, all_cols])
+    data = np.concatenate([diag_values, off_diag_data])
+
+    H = sp.csr_matrix((data, (row_indices, col_indices)), shape=(dims, dims))
+    
     return H, h_values
 
+# Random anti-ferromagnetic Heisenberg spin chain (1-dimensional nearest neighbour) SPARSE
+def random_antiferro_Heisenberg_1DNN_sparse(N, J, h, rng):
+    dims = 2**N
+    J_i = rng.uniform(0, J, N)
+    
+    # 1. Generate the state basis indices directly
+    state_indices = np.arange(dims)
+    
+    # 2. Compute Diagonal Terms (Sz * Sz interactions and External Field)
+    # Extract all bit values for all states at once: shape (dims, N)
+    # bit_matrix[i, p] is the value (0 or 1) of the p-th bit of state i
+    bit_matrix = (state_indices[:, None] >> np.arange(N)) & 1
+    sz_matrix = -1*(2 * bit_matrix - 1)  # Map 0 -> -1, 1 -> +1 (Pauli Z representation) #### ABC multiply by -1
+    
+    # Longitudinal field term: sum_p (h * sz_p) / 2  (assuming spin-1/2)
+    # Remove the division by 2 if h is acting on raw Pauli matrices
+    diag_h = np.sum(sz_matrix * (h / 2.0), axis=1)
+    
+    # Ising J_z term: sum_p J_i * sz_p * sz_{p+1}
+    # Roll the columns to get the NN neighbor (periodic boundary conditions)
+    sz_neighbors = np.roll(sz_matrix, -1, axis=1)
+    diag_J = np.sum(sz_matrix * sz_neighbors * (J_i / 4.0), axis=1)
+    
+    total_diag = diag_h + diag_J
+    
+    # 3. Compute Off-Diagonal Terms (Sx*Sx + Sy*Sy -> Spin Flips)
+    row_indices = []
+    col_indices = []
+    data = []
+    
+    for pos in range(N):
+        next_pos = (pos + 1) % N
+        bond_mask = (1 << pos) | (1 << next_pos)
+        
+        # Check where spins are opposite
+        bit1 = (state_indices >> pos) & 1
+        bit2 = (state_indices >> next_pos) & 1
+        opposite_spins = bit1 != bit2
+        
+        # Where spins are opposite, the flip operator acts
+        cols = state_indices[opposite_spins]
+        rows = state_indices[opposite_spins] ^ bond_mask
+        
+        row_indices.append(rows)
+        col_indices.append(cols)
+        # For Pauli matrices, off-diagonal is J/2. For spin-1/2 operators, it's J/2 as well if properly scaled.
+        data.append(np.full(len(cols), J_i[pos] / 2.0))
+        
+    # Concatenate all sparse coordinates
+    flat_rows = np.concatenate(row_indices)
+    flat_cols = np.concatenate(col_indices)
+    flat_data = np.concatenate(data)
+    
+    # Add the diagonal elements to the sparse data arrays
+    flat_rows = np.concatenate([flat_rows, state_indices])
+    flat_cols = np.concatenate([flat_cols, state_indices])
+    flat_data = np.concatenate([flat_data, total_diag])
+    
+    # Build CSR sparse matrix
+    H = sp.csr_matrix((flat_data, (flat_rows, flat_cols)), shape=(dims, dims))
+    
+    return H, J_i
 
 
 
