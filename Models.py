@@ -13,8 +13,7 @@ import numpy as np
 from scipy.linalg import expm
 import scipy.sparse as sp
 
-#from quspin.operators import hamiltonian
-#from quspin.basis import spin_basis_1d
+## ---- 1. Fully connected transverse field Ising spin network ----
 
 # --- Helper for Identity ---
 def I(i): 
@@ -70,7 +69,6 @@ def get_ZZ(N, z_ops):
             zz.append(z_ops[i] @ z_ops[j])
     return zz
 
-# --- Optimized Hamiltonian Functions ---
 
 import numpy as np
 
@@ -120,6 +118,7 @@ def Ising(N, K, h, rng, x_ops=None, z_ops=None, disorder=False, D=0):
         
     return H, W
 
+## ---- 2. One-dimensional nearest neighbor transverse field Ising spin chain ---
 def Ising_1DNN(N, K, h, rng):
     # 1. Generate random coupling weights
     W = rng.uniform(low=-K/2, high=K/2, size=N)
@@ -148,62 +147,13 @@ def Ising_1DNN(N, K, h, rng):
     # or get its eigenvalues directly using H.eigsh()
     return H, W
 
-def Heisenberg(N, K, h, rng, x_ops=None, y_ops=None, z_ops=None):
-    """
-    Constructs a Hermitian Heisenberg (XXX) Hamiltonian.
-    """
-    if x_ops is None: x_ops = get_Pauli_X(N)
-    if y_ops is None: y_ops = get_Pauli_Y(N)
-    if z_ops is None: z_ops = get_Pauli_Z(N)
-    
-    W = J_matrix(N, -K/2, K/2, rng)
-    dim = 2**N
-    H = np.zeros((dim, dim), dtype=complex)
-    
-    for i in range(N):
-        for j in range(i + 1, N):
-            # Heisenberg interaction: XiXj + YiYj + ZiZj
-            interaction = (x_ops[i] @ x_ops[j]) + \
-                          (y_ops[i] @ y_ops[j]) + \
-                          (z_ops[i] @ z_ops[j])
-            H += W[i, j] * interaction
-            
-    for i in range(N):
-        H -= h * z_ops[i]
-        
-    # Final Hermitian enforcement
-    H = (H + H.T) / 2
-    return H, W
-
-
-#def Heisenberg_1DNN(N,h,J,rng):
-#    h_i = rng.uniform(low=-h,high=h,size=N)
-#    x_interactions=[[J,i,(i+1) % N] for i in range(N)]
-#    y_interactions=[[J,i,(i+1) % N] for i in range(N)]
-#    z_interactions=[[J,i,(i+1) % N] for i in range(N)]
-#    z_fields = [[h_i[i],i] for i in range(N)]
-#    static = [
-#        ['xx',x_interactions],
-#        ['yy',y_interactions],
-#        ['zz',z_interactions],
-#        ['z',z_fields]
-#    ]
-#
-#    basis = spin_basis_1d(L=N)
-#    H = hamiltonian(static,[],basis=basis,check_herm=False,check_pcon=False)
-#    return H, h_i
-
-
-
-
-#---------------------------------xxxxxxxxxxxxxxxxxxxxxxxxxxxxx-------------------------------------------------------------
- # ------ Various Hamiltonians using a different method. --------
-## Anti-ferromagnetic Heisenberg spin chain with site-disorder using magnetic field. (1DNN, SPARSE)
+## ---- 3. One-dimensional nearest neighbor anti-ferromagnetic Heisenberg spin chain with random on-site magnetic field --- 
 def Heisenberg_1DNN(N, J, h, rng):
     """
     Generates the 1DNN Antiferromagnetic Heisenberg Hamiltonian with on-site
-    disorder and with periodic boundary conditions 
-    and random transverse/longitudinal fields using sparse COO/CSR matrices.
+    disorder and with periodic boundary conditions and random transverse/longitudinal 
+    fields using sparse COO/CSR matrices.
+    
     
     Returns:
         H (csr_matrix): Sparse Hamiltonian of shape (2^N, 2^N)
@@ -272,7 +222,7 @@ def Heisenberg_1DNN(N, J, h, rng):
     
     return H, h_values
 
-# Random anti-ferromagnetic Heisenberg spin chain (1-dimensional nearest neighbour) SPARSE
+## ---- 4.  One-dimensional nearest neighbor anti-ferromagnetic Heisenberg spin chain with random couplings ---
 def random_antiferro_Heisenberg_1DNN_sparse(N, J, h, rng):
     dims = 2**N
     J_i = rng.uniform(0, J, N)
@@ -334,6 +284,4 @@ def random_antiferro_Heisenberg_1DNN_sparse(N, J, h, rng):
     H = sp.csr_matrix((flat_data, (flat_rows, flat_cols)), shape=(dims, dims))
     
     return H, J_i
-
-
 
