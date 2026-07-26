@@ -109,9 +109,8 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau,rho=rho):
     return (cov_LinMem[0, 1]**2) / (cov_LinMem[0, 0] * cov_LinMem[1, 1]), (cov_NARMA[0, 1]**2) / (cov_NARMA[0, 0] * cov_NARMA[1, 1])
 
 # --- 4. PARAMETER SCAN SETUP ---
-#h_values = np.logspace(-2, 2, 60)
-h_values = [3]
-n_realizations = 64 
+h_values = np.logspace(-2, 2, 60)
+n_realizations = 100 
 # Create a flat list of (h, seed) tuples
 seed_values = range(n_realizations)
 

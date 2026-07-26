@@ -24,7 +24,7 @@ for i in range(n, total_steps):
 
 s = s_raw[100:] / 0.2 
 y_NARMA = y_raw[100:]
-
+total_steps = total_steps - 100
 y_LinMem = np.zeros(total_steps)
 for i in range(n, total_steps):
     y_LinMem[i] = s[i-n]

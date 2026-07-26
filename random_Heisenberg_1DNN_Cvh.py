@@ -7,7 +7,7 @@ from joblib import Parallel, delayed
 import numpy as np
 from scipy.linalg import eigh
 from sklearn.linear_model import LinearRegression
-from Models import get_Pauli_X, get_Pauli_Y, get_Pauli_Z, get_ZZ, Heisenberg_1DNN 
+from Models import get_Pauli_X, get_Pauli_Y, get_Pauli_Z, get_ZZ, random_antiferro_Heisenberg_1DNN_sparse 
 from Density_matrix import trace_1
 
 # ---- 1. Global data generation (linear memory task and NARMA) ---
@@ -51,7 +51,7 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau,rho=rho):
     local_rng = np.random.default_rng(seed)
     
     # --- 2.1. MODEL SETUP ---   
-    Hamiltonian, _ = Heisenberg_1DNN(N,J,h_val,local_rng)
+    Hamiltonian, _ = random_antiferro_Heisenberg_1DNN_sparse(N,J,h_val,local_rng)
     Hamiltonian = Hamiltonian.toarray()
     E, U = eigh(Hamiltonian)
     U_dag = U.conj().T
@@ -109,9 +109,8 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau,rho=rho):
     return (cov_LinMem[0, 1]**2) / (cov_LinMem[0, 0] * cov_LinMem[1, 1]), (cov_NARMA[0, 1]**2) / (cov_NARMA[0, 0] * cov_NARMA[1, 1])
 
 # --- 4. PARAMETER SCAN SETUP ---
-#h_values = np.logspace(-2, 2, 60)
-h_values = [3]
-n_realizations = 64 
+h_values = np.linspace(0,11.8,60)
+n_realizations = 100 
 # Create a flat list of (h, seed) tuples
 seed_values = range(n_realizations)
 
