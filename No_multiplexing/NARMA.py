@@ -1,4 +1,4 @@
-# Linear memory task using Ising 1D NN system of 10 spins
+# This code evaluates performace on the NARMA 10 task for the model Hamiltonian of your choice.
 
 import time
 import tracemalloc
@@ -34,7 +34,7 @@ y_test = y[washout+train:washout+train+test]
 
 # --- 2. MODEL SETUP ---
 N, J, h_val, tau = 10, 1, 6, 10
-Hamiltonian, _ = Heisenberg_1DNN(N,J,h_val,rng)
+Hamiltonian, _ = Heisenberg_1DNN(N,J,h_val,rng) # PUT YOUR HAMILTONIAN HERE!
 Hamiltonian = Hamiltonian.toarray()
 #rho = mixed_density_matrix(10, 2, N, rng, complex_ensemble=True)
 rho = (1/2**N)*np.ones([2**N,2**N]) # maximally coherent initial state

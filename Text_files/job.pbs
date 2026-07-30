@@ -1,0 +1,17 @@
+#! /bin/sh
+#PBS -j oe
+#PBS -l mem=5gb
+#PBS -l nodes=cn2:ppn=20
+#PBS -N StabilityProbe
+#PBS -o current.out
+
+
+source /apps/intel_oneapi/setvars.sh
+cd ${PBS_O_WORKDIR}
+echo "job started at `date`"
+eval "$(/apps/anaconda3/bin/conda shell.bash hook)"
+######################################
+mpirun -np 1  python3  FN_ED_MG_ScanOver_h.py > current_2.out 2>&1
+######################################
+echo "job ended at `date`"
+exit 0

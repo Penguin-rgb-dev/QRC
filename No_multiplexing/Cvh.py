@@ -1,5 +1,5 @@
-# NARMA task with RMP.
-# C v/s h
+# This file performs a scan over some parameter evaluating the performance metric C (capacity) for Linear Memory 10 and NARMA 10 tasks.
+# You can put the model Hamiltonian of your choice.
 
 import resource
 import os
@@ -10,8 +10,8 @@ from sklearn.linear_model import LinearRegression
 from Models import get_Pauli_X, get_Pauli_Y, get_Pauli_Z, get_ZZ, Heisenberg_1DNN 
 from Density_matrix import trace_1
 
-# --- 1. GLOBAL DATA GENERATION (NARMA) ---
-n = 10
+# ---- 1. Global data generation (linear memory task and NARMA) ---
+n = 10  # delay
 washout, train, test = 1000, 2000, 2000
 total_steps = washout + train + test + n + 100
 rng_data = np.random.default_rng(seed=42)
@@ -22,15 +22,21 @@ for i in range(n, total_steps):
     y_raw[i] = 0.1 + 1.5 * s_raw[i-n] * s_raw[i-1] + 0.05 * y_raw[i-1] * np.sum(y_raw[i-n:i]) + 0.3 * y_raw[i-1]
 
 s = s_raw[100:] / 0.2 
-y = y_raw[100:]
+y_NARMA = y_raw[100:]
+total_steps = total_steps - 100
+y_LinMem = np.zeros(total_steps)
+for i in range(n, total_steps):
+    y_LinMem[i] = s[i-n]
 
 s_washout = s[:washout]
 s_train = s[washout:washout+train]
 s_test = s[washout+train:washout+train+test]
-y_train = y[washout:washout+train]
-y_test = y[washout+train:washout+train+test]
+y_train_NARMA = y_NARMA[washout:washout+train]
+y_test_NARMA = y_NARMA[washout+train:washout+train+test]
+y_trian_LinMem = y_LinMem[washout:washout+train]
+y_test_LinMem = y_LinMem[washout+train:washout+train+test]
 
-# Create the operators amd the initial state once
+# --- 2. Parameters, readout operators, initial state, and the spin 1D basis ---
 N, J, tau = 10, 1, 10
 x_ops = get_Pauli_X(N)
 y_ops = get_Pauli_Y(N)
@@ -38,13 +44,14 @@ z_ops = get_Pauli_Z(N)
 zz_ops = get_ZZ(N,z_ops)
 rho = (1/2**N)*np.ones([2**N,2**N]) # maximally coherent initial state
 
-# --- 2. THE SIMULATION FUNCTION ---
+
+# --- 3. THE SIMULATION FUNCTION ---
 def run_simulation(h_val, seed, N=N,J=J,tau=tau,rho=rho):
     # Create a local RNG for this task
     local_rng = np.random.default_rng(seed)
     
     # --- 2.1. MODEL SETUP ---   
-    Hamiltonian, _ = Heisenberg_1DNN(N,J,h_val,local_rng)
+    Hamiltonian, _ = Heisenberg_1DNN(N,J,h_val,local_rng)   #PUT YOUR MODEL HAMILTONIAN HERE!
     Hamiltonian = Hamiltonian.toarray()
     E, U = eigh(Hamiltonian)
     U_dag = U.conj().T
@@ -82,8 +89,10 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau,rho=rho):
         rho = time_evolve(inpt_map(rho, s_train[k], N),phase_mat)
         X_train[k, :] = get_features(rho)
 
-    model = LinearRegression()
-    model.fit(X_train, y_train)
+    model_LinMem = LinearRegression()
+    model_LinMem.fit(X_train, y_trian_LinMem)
+    model_NARMA = LinearRegression()
+    model_NARMA.fit(X_train, y_train_NARMA)
 
     # Testing (Batch prediction)
     X_test = np.zeros((test, len(raw_obs)))
@@ -91,19 +100,21 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau,rho=rho):
         rho = time_evolve(inpt_map(rho, s_test[k], N),phase_mat)
         X_test[k, :] = get_features(rho)
 
-    y_pred = model.predict(X_test)
+    y_pred_LinMem = model_LinMem.predict(X_test)
+    y_pred_NARMA = model_NARMA.predict(X_test)
 
     # --- 2.4. RESULTS ---
-    cov = np.cov(y_test, y_pred)
-    return (cov[0, 1]**2) / (cov[0, 0] * cov[1, 1])
+    cov_LinMem = np.cov(y_test_LinMem, y_pred_LinMem)
+    cov_NARMA = np.cov(y_test_NARMA, y_pred_NARMA)
+    return (cov_LinMem[0, 1]**2) / (cov_LinMem[0, 0] * cov_LinMem[1, 1]), (cov_NARMA[0, 1]**2) / (cov_NARMA[0, 0] * cov_NARMA[1, 1])
 
-# --- 3. PARAMETER SCAN SETUP ---
+# --- 4. PARAMETER SCAN SETUP ---
 h_values = np.logspace(-2, 2, 60)
 n_realizations = 100 
 # Create a flat list of (h, seed) tuples
 seed_values = range(n_realizations)
 
-# --- 4. PARALLEL EXECUTION ---
+# --- 5. PARALLEL EXECUTION ---
 n_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK', 1))
 print(f"Running in parallel with {n_cpus} CPUs")
 
@@ -113,22 +124,44 @@ results_flat = Parallel(n_jobs=n_cpus)(
         for seed in seed_values
     )
 
-results_matrix = np.array(results_flat).reshape(len(h_values), n_realizations)
-    
-c_mean = np.mean(results_matrix, axis=1)
-c_se = np.std(results_matrix, axis=1, ddof=1) / np.sqrt(n_realizations)
+# Reshape into (len(h_values), n_realizations, 2) because each run returns 2 outputs
+results_matrix = np.array(results_flat).reshape(len(h_values), n_realizations, 2)
 
-np.savez_compressed(''
-    'results/Heisenberg_1DNN_NARMA_Cvh.npz',
-    h_values = h_values,
-    c_raw=results_matrix,
-    c_mean=c_mean,
-    c_se=c_se,
+# Separate the tasks along the last axis
+matrix_LinMem = results_matrix[:, :, 0]
+matrix_NARMA  = results_matrix[:, :, 1]
+
+# Compute statistics for Linear Memory
+c_mean_LinMem = np.mean(matrix_LinMem, axis=1)
+c_std_LinMem  = np.std(matrix_LinMem, axis=1)
+c_se_LinMem   = np.std(matrix_LinMem,axis=1,ddof=1) / np.sqrt(n_realizations)
+
+# Compute statistics for NARMA
+c_mean_NARMA = np.mean(matrix_NARMA, axis=1)
+c_std_NARMA  = np.std(matrix_NARMA, axis=1)
+c_se_NARMA   = np.std(matrix_NARMA,axis=1,ddof=1) / np.sqrt(n_realizations)
+
+# Save everything comprehensively
+np.savez_compressed(
+    'results/Heisenberg_1DNN_Cvh.npz',
+    h_values=h_values,
+    # Raw matrix outputs
+    c_raw_LinMem=matrix_LinMem,
+    c_raw_NARMA=matrix_NARMA,
+    # LinMem Metrics
+    c_mean_LinMem=c_mean_LinMem,
+    c_std_LinMem=c_std_LinMem,
+    c_se_LinMem=c_se_LinMem,
+    # NARMA Metrics
+    c_mean_NARMA=c_mean_NARMA,
+    c_std_NARMA=c_std_NARMA,
+    c_se_NARMA=c_se_NARMA,
+    # Metadata
     n_spins=N,
     J_val=J,
     tau_val=tau,
     n_realizations=n_realizations,
-    model="Heisenberg 1-dimensional nearest neighbour"
+    model="Antiferromagnetic Heisenberg 1-dimensional nearest neighbour"
 )
 print("Simulation complete. Final data saved.")
 

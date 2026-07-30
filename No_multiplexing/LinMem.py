@@ -1,11 +1,11 @@
-# Linear memory task using Ising 1D NN system of 10 spins
+# This code evaluates performance on Linear Memory 10 task for the model Hamiltonian of your choice.
 
 import time
 import tracemalloc
 import numpy as np
 from scipy.linalg import eigh
 from sklearn.linear_model import LinearRegression
-from Models import get_Pauli_X, get_Pauli_Y, get_Pauli_Z, get_ZZ, Ising_1DNN 
+from Models import get_Pauli_X, get_Pauli_Y, get_Pauli_Z, get_XX, get_YY, get_ZZ, Heisenberg_1DNN
 from Density_matrix import trace_1, mixed_density_matrix
 
 
@@ -30,13 +30,11 @@ y_train = y[washout:washout+train]
 y_test = y[washout+train:washout+train+test]
 
 # --- 2. MODEL SETUP ---
-N, J, h_val, tau = 10, 1, 0.1*0.5, 10
-Hamiltonian, _ = Ising_1DNN(N, J, h_val, rng)
-#rho = mixed_density_matrix(10, 2, N, rng, complex_ensemble=True)
+N, J, h_val, tau = 10, 1, 0.5, 10
+Hamiltonian, _ = Heisenberg_1DNN(N,J,h_val,rng)  # PUT YOU HAMILTONIAN HERE!
+Hamiltonian = Hamiltonian.toarray()
 rho = (1/2**N)*np.ones([2**N,2**N]) # maximally coherent initial state
-
-
-E, U = Hamiltonian.eigh()
+E, U = eigh(Hamiltonian)
 U_dag = U.conj().T
 phase_mat = np.exp(-1j * (E[:, np.newaxis] - E[np.newaxis, :]) * tau)
 
@@ -45,8 +43,10 @@ phase_mat = np.exp(-1j * (E[:, np.newaxis] - E[np.newaxis, :]) * tau)
 x_ops = get_Pauli_X(N)
 y_ops = get_Pauli_Y(N)
 z_ops = get_Pauli_Z(N)
+xx_ops = get_XX(N,x_ops)
+yy_ops = get_YY(N,y_ops)
 zz_ops = get_ZZ(N,z_ops)
-raw_obs = x_ops + y_ops + z_ops + zz_ops
+raw_obs = x_ops + y_ops + z_ops + xx_ops + yy_ops + zz_ops
 obs_matrix = np.array([o.flatten() for o in raw_obs]) 
 
 def get_features(rho_matrix):
