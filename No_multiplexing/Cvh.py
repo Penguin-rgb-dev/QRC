@@ -42,11 +42,11 @@ x_ops = get_Pauli_X(N)
 y_ops = get_Pauli_Y(N)
 z_ops = get_Pauli_Z(N)
 zz_ops = get_ZZ(N,z_ops)
-rho = (1/2**N)*np.ones([2**N,2**N]) # maximally coherent initial state
+RHO_INIT = (1/2**N)*np.ones([2**N,2**N]) # maximally coherent initial state
 
 
 # --- 3. THE SIMULATION FUNCTION ---
-def run_simulation(h_val, seed, N=N,J=J,tau=tau,rho=rho):
+def run_simulation(h_val, seed, N=N,J=J,tau=tau):
     # Create a local RNG for this task
     local_rng = np.random.default_rng(seed)
     
@@ -78,6 +78,9 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau,rho=rho):
         return np.kron(rho_s, trace_1(rho_in, N_spins))
 
     # --- 2.3. EXECUTION LOOPS ---
+
+    # copy global initial state for worker specific dynamic evolution
+    rho = RHO_INIT.copy()
 
     # Washout (No data storage)
     for val in s_washout:
