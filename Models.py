@@ -273,7 +273,7 @@ def TFIM_1DNN(N, J, h):
     
     return H, J_bonds
 
-## ---- 3. One-dimensional nearest neighbor Heisenberg spin chain  --- (NEEDS TO BE UNDERSTOOD)
+## ---- 3. One-dimensional nearest neighbor Heisenberg spin chain  ----
 def Heisenberg_1DNN_general(N, J, h, rng=None):
     """
     Constructs the 1D Nearest-Neighbor Heisenberg Hamiltonian with periodic boundary 
@@ -372,3 +372,86 @@ def Heisenberg_1DNN_general(N, J, h, rng=None):
     H = sp.csr_matrix((data, (row_indices, col_indices)), shape=(dims, dims))
     
     return H, J_bonds, h_sites
+
+## ---- 4. Heisenberg_spin_3/2 nearest neighbor ----
+def heisenberg_spin_3_half(N, J_array, h_array, periodic=False):
+    """
+    Builds a spin-3/2 Heisenberg Hamiltonian with site-dependent J and magnetic field h.
+    
+    Parameters:
+    - N (int): Number of sites.
+    - J_array (list or ndarray): Coupling strengths. 
+                                 Length must be N-1 (open) or N (periodic).
+    - h_array (list or ndarray): Magnetic field at each site. Length must be N.
+    - periodic (bool): If True, applies periodic boundary conditions.
+    """
+    d = 4
+    num_states = d**N
+    
+    # Convert inputs to numpy arrays for safety
+    J = np.asarray(J_array)
+    h = np.asarray(h_array)
+    
+    # Validate array lengths
+    num_bonds = N if periodic else N - 1
+    if len(J) != num_bonds:
+        raise ValueError(f"J_array must have length {num_bonds} for N={N} (periodic={periodic})")
+    if len(h) != N:
+        raise ValueError(f"h_array must have length {N} to match the number of sites")
+    
+    # Map the base-4 digit q in {0, 1, 2, 3} to m_z quantum number
+    q_to_m = np.array([1.5, 0.5, -0.5, -1.5])
+    
+    # Pre-calculate matrix element amplitudes for S+ and S-
+    Sp_amp = np.array([0.0, np.sqrt(3), 2.0, np.sqrt(3)])
+    Sm_amp = np.array([np.sqrt(3), 2.0, np.sqrt(3), 0.0])
+    
+    rows = []
+    cols = []
+    data = []
+    
+    # Loop over every possible many-body state integer
+    for s in range(num_states):
+        diag_val = 0.0
+        
+        # --- MODIFICATION 2: Site-dependent Magnetic Field (Zeeman Term) ---
+        # H_field = - \sum_i h_i * S_i^z
+        for i in range(N):
+            qi = (s >> (2 * i)) & 3
+            diag_val += -h[i] * q_to_m[qi]
+            
+        # --- MODIFICATION 1: Site-dependent J Coupling ---
+        for i in range(num_bonds):
+            j = (i + 1) % N
+            J_local = J[i]  # Use the specific J for this bond
+            
+            qi = (s >> (2 * i)) & 3
+            qj = (s >> (2 * j)) & 3
+            
+            # Diagonal Contribution (S_i^z S_j^z)
+            diag_val += -J_local * q_to_m[qi] * q_to_m[qj]
+            
+            # Off-Diagonal Contribution 0.5 * (S_i^+ S_j^- + S_i^- S_j^+)
+            if qi > 0 and qj < 3:
+                s_new = s - (1 << (2 * i)) + (1 << (2 * j))
+                val = -J_local * 0.5 * Sp_amp[qi] * Sm_amp[qj]
+                
+                rows.append(s)
+                cols.append(s_new)
+                data.append(val)
+                
+            if qi < 3 and qj > 0:
+                s_new = s + (1 << (2 * i)) - (1 << (2 * j))
+                val = -J_local * 0.5 * Sm_amp[qi] * Sp_amp[qj]
+                
+                rows.append(s)
+                cols.append(s_new)
+                data.append(val)
+        
+        # Store the accumulated diagonal value (Field + SzSz) for this state
+        rows.append(s)
+        cols.append(s)
+        data.append(diag_val)
+        
+    H = sp.coo_matrix((data, (rows, cols)), shape=(num_states, num_states))
+    return H.tocsr()
