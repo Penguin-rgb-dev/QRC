@@ -26,6 +26,7 @@ def J_matrix(N, K_min, K_max, rng):
     return j_sym
 
 # --- Optimized Operator Generation ---
+# Spin 1/2
 def get_Pauli_X_L_R(N):
     x = np.array([[0, 1], [1, 0]], dtype=complex)
     return [np.kron(np.kron(np.eye(2**i), x), np.eye(2**(N-i-1))) for i in range(N)]
@@ -86,6 +87,107 @@ def get_ZZ(N, z_ops):
             zz.append(z_ops[i] @ z_ops[j])
     return zz
 
+# Spin 3/2
+from functools import reduce
+def get_spin_3_half_operators(sparse=True):
+    """Generates single-site spin-3/2 operators (Sx, Sy, Sz)."""
+    Sz = np.diag([1.5, 0.5, -0.5, -1.5])
+
+    Sp = np.zeros((4, 4))
+    Sp[0, 1] = np.sqrt(3)
+    Sp[1, 2] = 2.0
+    Sp[2, 3] = np.sqrt(3)
+
+    Sm = Sp.T
+
+    Sx = 0.5 * (Sp + Sm)
+    Sy = -0.5j * (Sp - Sm)
+
+    if sparse:
+        return sp.csr_matrix(Sx), sp.csr_matrix(Sy), sp.csr_matrix(Sz)
+    return Sx, Sy, Sz
+
+
+def embed_operators(num_sites, site_ops, d=4, sparse=True):
+    """Helper to embed localized operators into the full N-site Hilbert space.
+
+    Site ordering: Site 0 is the rightmost tensor factor.
+    """
+    if sparse:
+        eye_op = sp.eye(d, format="csr")
+        op_list = [
+            site_ops.get(num_sites - 1 - idx, eye_op)
+            for idx in range(num_sites)
+        ]
+        return reduce(lambda a, b: sp.kron(a, b).tocsr(), op_list)
+    else:
+        eye_op = np.eye(d)
+        op_list = [
+            site_ops.get(num_sites - 1 - idx, eye_op)
+            for idx in range(num_sites)
+        ]
+        return reduce(np.kron, op_list)
+
+
+def get_spin_operators(num_sites, op_type="x", d=4, sparse=True):
+    """Generates single-site spin operators embedded in the N-site Hilbert space."""
+    Sx, Sy, Sz = get_spin_3_half_operators(sparse=sparse)
+    op_map = {"x": Sx, "y": Sy, "z": Sz}
+
+    if op_type not in op_map:
+        raise ValueError("op_type must be 'x', 'y', or 'z'.")
+
+    op = op_map[op_type]
+    return [
+        embed_operators(num_sites, {site: op}, d=d, sparse=sparse)
+        for site in range(num_sites)
+    ]
+
+def get_spin_xx(num_sites, d=4, sparse=True):
+    """Generates two-site Sz_i * Sz_j spin operators for all site pairs (i, j)."""
+    Sx, _, _ = get_spin_3_half_operators(sparse=sparse)
+    operators = []
+
+    for site_i in range(num_sites):
+        for site_j in range(site_i+1,num_sites):
+            site_dict = {site_i: Sx, site_j: Sx}       
+            full_op = embed_operators(
+                num_sites, site_dict, d=d, sparse=sparse
+            )
+            operators.append(full_op)
+
+    return operators
+
+def get_spin_yy(num_sites, d=4, sparse=True):
+    """Generates two-site Sz_i * Sz_j spin operators for all site pairs (i, j)."""
+    _, Sy, _ = get_spin_3_half_operators(sparse=sparse)
+    operators = []
+
+    for site_i in range(num_sites):
+        for site_j in range(site_i+1,num_sites):
+            site_dict = {site_i: Sy, site_j: Sy}       
+            full_op = embed_operators(
+                num_sites, site_dict, d=d, sparse=sparse
+            )
+            operators.append(full_op)
+
+    return operators
+
+def get_spin_zz(num_sites, d=4, sparse=True):
+    """Generates two-site Sz_i * Sz_j spin operators for all site pairs (i, j)."""
+    _, _, Sz = get_spin_3_half_operators(sparse=sparse)
+    operators = []
+
+    for site_i in range(num_sites):
+        for site_j in range(site_i+1,num_sites):
+            site_dict = {site_i: Sz, site_j: Sz}       
+            full_op = embed_operators(
+                num_sites, site_dict, d=d, sparse=sparse
+            )
+            operators.append(full_op)
+
+    return operators
+
 def Ising(N, K, h, rng, x_ops=None, z_ops=None, disorder=False, D=0):
     """
     Constructs a Hermitian Transverse Field Ising Hamiltonian.
@@ -132,6 +234,7 @@ def Ising(N, K, h, rng, x_ops=None, z_ops=None, disorder=False, D=0):
         
     return H, W
 
+# ---- hamiltonians ----
 ## ---- 1. Fully connected transverse field Ising spins ----
 def FullyConnected_TFIM(N, J, h):
     """
