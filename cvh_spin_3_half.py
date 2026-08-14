@@ -96,7 +96,7 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau):
     # --- 2.1. MODEL SETUP ---
     J_array = np.full(N, -1)
     h_array = local_rng.uniform(low=-h_val,high=h_val,size=N)
-    Hamiltonian = heisenberg_spin_3_half(N, J_array, h_array,periodic=True)   #PUT YOUR MODEL HAMILTONIAN HERE!
+    Hamiltonian = heisenberg_spin_3_half(N, J_array, h_array,periodic=True)   #PUT YOUR HAMILTONIAN HERE!
     Hamiltonian = Hamiltonian.toarray()
     E, U = eigh(Hamiltonian)
     U_dag = U.conj().T
