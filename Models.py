@@ -304,7 +304,7 @@ def FullyConnected_TFIM(N, J, h):
 
     H = sp.csr_matrix((data, (row_indices, col_indices)), shape=(dims, dims))
     
-    return H, J_matrix
+    return H
 
 ## ---- 2. One-dimensional nearest neighbor transverse field Ising spin chain ---
 def TFIM_1DNN(N, J, h):
@@ -480,6 +480,7 @@ def Heisenberg_1DNN_general(N, J, h, rng=None):
 def heisenberg_spin_3_half(N, J_array, h_array, periodic=False):
     """
     Builds a spin-3/2 Heisenberg Hamiltonian with site-dependent J and magnetic field h.
+    H = - sum_i J_i (S_i . S_{i+1}) - sum_i (h_i S^z_i)
     
     Parameters:
     - N (int): Number of sites.
