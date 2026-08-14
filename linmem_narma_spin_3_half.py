@@ -43,7 +43,7 @@ N, J_val, h_val, tau = 5, 1, 1, 10
 dims = 4**N
 J_i = np.full(N,-1)
 h_i = rng.uniform(-h_val,h_val,size=N)
-Hamiltonian = heisenberg_spin_3_half(N, J_i, h_i, periodic=True)  # PUT YOU HAMILTONIAN HERE!
+Hamiltonian = heisenberg_spin_3_half(N, J_i, h_i, periodic=True)  # PUT YOUR HAMILTONIAN HERE!
 Hamiltonian = Hamiltonian.toarray()
 rho = np.full((dims,dims),1/dims) # maximally coherent initial state
 E, U = eigh(Hamiltonian)
