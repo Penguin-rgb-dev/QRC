@@ -1,0 +1,12 @@
+Codes for HPC
+Login: ssh -y divesh@172.27.4.2
+Logout: logout
+Submit job: qsub job.pbs
+Kill or end a job: qdel -W force <job id>
+See running jobs: qstat
+	qstat -u divesh
+	qstat -n
+Status of all the nodes: pbsnodes -aSj
+To get the error output: > <file_name>.out 2>&1
+To download/copy file from HPC to PC: scp -r divesh@172.27.4.2:/home/divesh/QRC/<filename>.txt
+To Send to HPC (go to the folder containing file): scp <filename> divesh@172.27.4.2:/home/divesh/QRC/
