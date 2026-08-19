@@ -17,7 +17,7 @@ rng = np.random.default_rng(seed)
 
 # ---- 1. data generation ----
 # l is the length of input sequences and k is the prediction step size.
-discard_len, l, k, train_len, test_len = 1000, 16, 1, 800, 200
+discard_len, l, k, train_len, test_len = 1000, 16, 100, 800, 200
 sigma, tau_MG, total_mg_steps = 0.1, 17, (discard_len + train_len + test_len + l + k -1)*10
 A = np.zeros(total_mg_steps)
 A[0] = 1.2

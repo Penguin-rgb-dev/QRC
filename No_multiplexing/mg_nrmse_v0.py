@@ -154,7 +154,7 @@ print(f"Peak RAM: {peak/10**6:.2f} MB")
 print(f"Current RAM: {current/10**6:.2f} MB")
 
 # ---- 6. save the results ----
-output_dir = "Data/nrmse"
+output_dir = "Data/mg/nrmse"
 os.makedirs(output_dir, exist_ok=True)
 
 output_file = os.path.join(output_dir, "nrmse_84_v0_{seed}.npz")
