@@ -1,0 +1,16 @@
+#!/bin/bash
+#PBS -N my_job_name          # Job name
+#PBS -l nodes=1:ppn=4       # Request 1 node with 4 processors
+#PBS -l walltime=01:00:00   # Maximum run time (hh:mm:ss)
+#PBS -q batch               # Queue name
+#PBS -j oe                  # Join standard output and error into one file
+#PBS -o job_output.txt      # Output file name
+
+# Change to the directory from which the job was submitted
+cd $PBS_O_WORKDIR
+
+# Load any required environment modules (optional)
+# module load python/3.9
+
+# Run your command or program
+python script.py

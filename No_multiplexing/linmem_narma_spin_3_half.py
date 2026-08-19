@@ -45,7 +45,7 @@ J_i = np.full(N,-1)
 h_i = rng.uniform(-h_val,h_val,size=N)
 Hamiltonian = heisenberg_spin_3_half(N, J_i, h_i, periodic=True)  # PUT YOUR HAMILTONIAN HERE!
 Hamiltonian = Hamiltonian.toarray()
-rho = np.full((dims,dims),1/dims) # maximally coherent initial state
+rho = np.full((dims,dims), 1/dims, dtype=complex) # maximally coherent initial state
 E, U = eigh(Hamiltonian)
 U_dag = U.conj().T
 phase_mat = np.exp(-1j * (E[:, np.newaxis] - E[np.newaxis, :]) * tau)

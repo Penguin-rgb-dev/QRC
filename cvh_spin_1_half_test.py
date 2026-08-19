@@ -43,6 +43,7 @@ y_test_LinMem = y_LinMem[washout+train:washout+train+test]
 
 # --- 2. Parameters, readout operators, initial state, and the spin 1D basis ---
 N, J, tau = 10, 1, 10
+dims = 2**N
 x_ops = get_Pauli_X(N)
 y_ops = get_Pauli_Y(N)
 z_ops = get_Pauli_Z(N)
@@ -54,7 +55,7 @@ raw_obs = x_ops + y_ops + z_ops + xx_ops + yy_ops + zz_ops
 obs_matrix = np.array([o.conj().flatten() for o in raw_obs])
 
 # maximally coherent initial state
-RHO_INIT = (1/2**N)*np.ones([2**N,2**N]) 
+RHO_INIT = np.full((dims,dims), 1/dims, dtype=complex)  
 
 # --- 3. THE SIMULATION FUNCTION ---
 def run_simulation(h_val, seed, N=N,J=J,tau=tau):
@@ -100,7 +101,7 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau):
     for val in s_washout:
         rho = time_evolve(inpt_map(rho, val, N),phase_mat)
 
-    # Training (Vectorized feature extraction)
+    # Training
     X_train, rho = extract_features(rho, s_train)
 
     model_LinMem = LinearRegression()
@@ -108,7 +109,7 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau):
     model_NARMA = LinearRegression()
     model_NARMA.fit(X_train, y_train_NARMA)
 
-    # Testing (Batch prediction)
+    # Testing
     X_test, _ = extract_features(rho, s_test)
 
     y_pred_LinMem = model_LinMem.predict(X_test)

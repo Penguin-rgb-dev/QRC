@@ -36,8 +36,9 @@ s_raw = A[::10]
 var = np.var(s_raw)
 
 # normalizing to [0,1]
-s_raw = (s_raw - np.min(s_raw)) / (np.max(s_raw) - np.min(s_raw))
-print(f's_max = {np.max(s_raw):.4f}, s_min = {np.min(s_raw):.4f}')
+min, max = np.min(s_raw), np.max(s_raw)
+s_raw = (s_raw - min) / (max - min)
+print(f's_min = {np.min(s_raw):.4f}, s_max = {np.max(s_raw):.4f}')
 
 # defining washout, train, test data
 s_washout = s_raw[:washout_len-1]
@@ -45,8 +46,8 @@ s_train = s_raw[washout_len-1 : washout_len + train_len-1]
 y_train = s_raw[washout_len : washout_len + train_len]
 s_test = s_raw[washout_len + train_len:].reshape(num_test_seq, teacher_force_len+test_len)
 
-# collecting the 84th step target values in the original coordinates.
-y_target_84 = s_test[:,-1]
+# collecting the 84th step target values in the original coordinates
+y_target_84 = (s_test[:,-1] * (max - min)) + min
 
 
 # ---- 2. parameters, observables, hamiltonian, functions, initial state ----
@@ -136,7 +137,7 @@ for i in range(num_test_seq):
         # Clip predictions to prevent numerical divergence in feedback loop
         pred_val = np.clip(pred_val, 0, 1)
 
-    pred_val = np.atanh(pred_val) + 1   # going to the original co-ordinates
+    pred_val = (pred_val * (max - min)) + min   # converting back to the original coordinates
     diff.append(y_target_84[i]-pred_val)
 
 
@@ -155,7 +156,7 @@ print(f"Peak RAM: {peak/10**6:.2f} MB")
 print(f"Current RAM: {current/10**6:.2f} MB")
 
 # ---- 6. save the results ----
-output_dir = "nrmse"
+output_dir = "Data/nrmse"
 os.makedirs(output_dir, exist_ok=True)
 
 output_file = os.path.join(output_dir, "nrmse_84_v1_{seed}.npz")
