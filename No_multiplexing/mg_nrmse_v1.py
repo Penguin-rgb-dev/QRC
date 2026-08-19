@@ -159,7 +159,7 @@ print(f"Current RAM: {current/10**6:.2f} MB")
 output_dir = "Data/mg/nrmse"
 os.makedirs(output_dir, exist_ok=True)
 
-output_file = os.path.join(output_dir, "nrmse_84_v1_{seed}.npz")
+output_file = os.path.join(output_dir, f"nrmse_84_v1_{seed}.npz")
 np.savez_compressed(
     output_file,
     nrmse = nrmse,
