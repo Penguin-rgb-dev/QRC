@@ -1,0 +1,12 @@
+name: quantum_env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - numpy
+  - scipy
+  - matplotlib-base
+  - joblib
+  - scikit-learn
+  - qutip
+  - python=3.10  # It's good practice to lock the Python version
