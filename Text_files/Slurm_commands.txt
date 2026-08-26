@@ -48,4 +48,4 @@ for script in script1.py script2.py script3.py; do
     sbatch template.sh $script
 done
 
-and put $1 in place of the file name in the slurm script.
+# and put $1 in place of the file name in the slurm script.
