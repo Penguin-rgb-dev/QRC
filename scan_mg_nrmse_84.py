@@ -45,7 +45,7 @@ y_target_84 = (s_test[:,-1] * (max - min)) + min
 
 
 # --- 2. Parameters, readout operators, initial state, and the spin 1D basis ---
-N, J, tau = 4, 1, 10
+N, J, tau = 10, 1, 10
 dims = 2**N
 x_ops = get_Pauli_X(N)
 y_ops = get_Pauli_Y(N)
@@ -175,7 +175,7 @@ if __name__ == "__main__":
     output_dir = "results"
     os.makedirs(output_dir, exist_ok=True)
   
-    output_file = os.path.join(output_dir, "scan_mg_fully_connected_tfim.npz")
+    output_file = os.path.join(output_dir, "scan_mg_nrmse_84_fully_connected_tfim.npz")
     np.savez_compressed(
         output_file,
         h_values=h_values,
