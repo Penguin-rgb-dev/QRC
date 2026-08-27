@@ -1,0 +1,4 @@
+Job started on c13node5 at Thu Aug 27 09:19:49 IST 2026
+Allocated Cores: 32
+----------------------------------------
+Running in parallel with 32 CPUs

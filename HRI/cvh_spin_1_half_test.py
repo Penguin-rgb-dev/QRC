@@ -127,11 +127,11 @@ if __name__ == "__main__":
 
     #h_values = np.logspace(-2, 2, 60)*0.5
     h_values = [0.5e-1]
-    n_realizations = 64 #100
+    n_realizations = 32 #100
     seed_values = range(n_realizations)
 
-    #n_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK', 1))
-    n_cpus = os.environ.get("JOBLIB_CPU_COUNT", os.cpu_count())
+    # Read the CPU limit exported by your .sh script
+    n_cpus = int(os.environ.get('JOBLIB_CPU_COUNT') or os.environ.get('PBS_NUM_PPN') or os.cpu_count() or 1)
     print(f"Running in parallel with {n_cpus} CPUs")
 
     results_flat = Parallel(n_jobs=n_cpus)(
