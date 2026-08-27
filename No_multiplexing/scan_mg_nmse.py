@@ -38,7 +38,7 @@ y_train = y[washout_len : washout_len + train_len]
 y_target = y[washout_len + train_len : washout_len + train_len + test_len]
 
 # --- 2. PARAMETERS, OBSERVABLES, GLOBAL INITIAL STATE, AND REGULARIZATION NOISE ---
-N, J, tau = 10, 1, 10
+N, J, tau = 4, 1, 10
 dims = 2**N
 x_ops = get_Pauli_X(N)
 y_ops = get_Pauli_Y(N)
@@ -114,7 +114,6 @@ def run_simulation(h_val, seed):
 
     # Ridge model prevents ill-conditioned weights and feedback explosion
     model = Ridge(alpha=1e-4).fit(X_train, y_train)
-    print("Training Complete.")
 
     # test
     y_pred = []
