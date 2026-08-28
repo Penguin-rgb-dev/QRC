@@ -122,7 +122,6 @@ for i in range(test_len):
     
     for v in range(V):
         rho = evolve(rho, Phase_dt)
-        rd = rho.diagonal()
         X_features[v*N : (v+1)*N] = np.real(obs_matrix @ rho.diagonal())
             
     feat = ((X_features + 1.0) / 2.0).reshape(1, -1)
