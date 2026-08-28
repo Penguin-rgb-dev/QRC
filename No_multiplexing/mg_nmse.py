@@ -132,7 +132,7 @@ for _ in range(test_len - 1):
 
 
 # ---- 4. EVALUATE NMSE ----
-nmse = np.mean((y_target - y_pred)**2) / np.mean(y_target**2)
+nmse = np.mean((y_target - np.array(y_pred))**2) / np.mean(y_target**2)
 
 end_time = time.perf_counter()
 current, peak = tracemalloc.get_traced_memory()
