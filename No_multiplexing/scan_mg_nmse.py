@@ -134,7 +134,7 @@ def run_simulation(h_val, seed):
 
 
     # --- 3.3 EVALUATE NMSE (nmse = sum_i (y_target_i - y_pred_i)^2 / sum_i y_target_i^2 ) ----
-    nmse = np.mean((y_target - y_pred)**2) / np.mean(y_target**2)
+    nmse = np.mean((y_target - np.array(y_pred))**2) / np.mean(y_target**2)
 
     return nmse
 
