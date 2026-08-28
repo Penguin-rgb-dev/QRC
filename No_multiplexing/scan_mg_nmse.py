@@ -116,25 +116,24 @@ def run_simulation(h_val, seed):
     model = Ridge(alpha=1e-4).fit(X_train, y_train)
 
     # test
-    y_pred = []
-    rho = evolve(input_map(rho, y_train[-1], N), phase_mat)
-    x_features = (np.real(obs_matrix @ rho.flatten()) + 1) / 2
-    pred_val = model.predict(x_features.reshape(1,-1))[0]
-    y_pred.append(pred_val)
+    y_pred = np.zeros(test_len)
+    input_signal = y_train[-1]
 
-    for _ in range(test_len - 1):
-        rho = evolve(input_map(rho, pred_val, N), phase_mat)
+    for i in range(test_len):
+        rho = evolve(input_map(rho, input_signal, N), phase_mat)
         x_features = (np.real(obs_matrix @ rho.flatten()) + 1) / 2
         pred_val = model.predict(x_features.reshape(1,-1))[0]
 
         # Clip predictions to prevent numerical divergence in feedback loop
         pred_val = np.clip(pred_val, 0, 1)
+        y_pred[i] = pred_val
 
-        y_pred.append(pred_val)
+        # Feedback loop: set current prediction as next step's input signal
+        input_signal = pred_val
 
 
     # --- 3.3 EVALUATE NMSE (nmse = sum_i (y_target_i - y_pred_i)^2 / sum_i y_target_i^2 ) ----
-    nmse = np.mean((y_target - np.array(y_pred))**2) / np.mean(y_target**2)
+    nmse = np.mean((y_target - y_pred)**2) / np.mean(y_target**2)
 
     return nmse
 

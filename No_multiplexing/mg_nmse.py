@@ -4,6 +4,7 @@
 # Here we have added the use of ridge regression and output clipping to deal with the unreported anomalies.
 
 # ---- 0. IMPORTS ----
+import os
 import time
 import tracemalloc
 import numpy as np
@@ -43,7 +44,7 @@ y_train = y[washout_len : washout_len + train_len]
 y_target = y[washout_len + train_len : washout_len + train_len + test_len]
 
 # ---- 2. PARAMETERS, OBSERVABLES, HAMILTONIAN, FUNCTIONS, INITIAL STATE ----
-N, J, h_val, tau = 10, 1, 0.5e-1, 10
+N, J, h_val, tau = 7, 1, 0.5e-1, 10
 dims = 2**N
 J_ij = J_matrix(N,-J/2,J/2,rng)
 Hamiltonian = FullyConnected_TFIM(N,J_ij,h_val)  # PUT YOU HAMILTONIAN HERE!
@@ -114,32 +115,52 @@ model = Ridge(alpha=1e-4).fit(X_train, y_train)
 print("Training Complete.")
 
 # test
-y_pred = []
-rho = evolve(input_map(rho, y_train[-1], N), phase_mat)
-x_features = (np.real(obs_matrix @ rho.flatten()) + 1) / 2
-pred_val = model.predict(x_features.reshape(1,-1))[0]
-y_pred.append(pred_val)
+y_pred = np.zeros(test_len)
+input_signal = y_pred[-1]
 
-for _ in range(test_len - 1):
-    rho = evolve(input_map(rho, pred_val, N), phase_mat)
+for i in range(test_len - 1):
+    rho = evolve(input_map(rho, input_signal, N), phase_mat)
     x_features = (np.real(obs_matrix @ rho.flatten()) + 1) / 2
     pred_val = model.predict(x_features.reshape(1,-1))[0]
 
     # Clip predictions to prevent numerical divergence in feedback loop
     pred_val = np.clip(pred_val, 0, 1)
+    y_pred[i] = pred_val
 
-    y_pred.append(pred_val)
+    # Feedback loop: set current prediction as next step's input signal
+    input_signal = pred_val
 
 
 # ---- 4. EVALUATE NMSE ----
-nmse = np.mean((y_target - np.array(y_pred))**2) / np.mean(y_target**2)
+nmse = np.mean((y_target - y_pred)**2) / np.mean(y_target**2)
+
+print("\n--- RESULTS ---")
+print(f"nmse: {nmse:.6e}")
+print(f"Prediction Range: [{y_pred.min():.4f}, {y_pred.max():.4f}]")
+
+# Save everything comprehensively
+output_dir = "data/mg"
+os.makedirs(output_dir, exist_ok=True)
+
+output_file = os.path.join(output_dir, "mg_nmse.npz")
+np.savez_compressed(
+    output_file,
+    nmse = nmse,
+    pred = y_pred,
+    target = y_target,
+    # metadata
+    n_spins = N,
+    j_val = J,
+    h_val = h_val,
+    tau_val = tau,
+    model="fully connected transverse field ising model; H = sum_ij J_ij X_i X_j + h sum_i Z_i; J_ij in U(-J_val/2,J_val/2)."
+)
 
 end_time = time.perf_counter()
 current, peak = tracemalloc.get_traced_memory()
 tracemalloc.stop()
 
 print("Simulation completed!")
-print(f"nmse = {nmse}")
 print(f"Total time: {end_time-start_time:.4f}s")
 print(f"Peak RAM: {peak/10**6:.2f} MB")
 print(f"Current RAM: {current/10**6:.2f} MB")
