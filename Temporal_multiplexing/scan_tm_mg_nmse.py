@@ -8,7 +8,7 @@ from joblib import Parallel, delayed
 import numpy as np
 from scipy.linalg import eigh
 from sklearn.linear_model import Ridge
-from Models import get_Pauli_X, get_Pauli_Y, get_Pauli_Z, get_XX, get_YY, get_ZZ, J_matrix, FullyConnected_TFIM 
+from Models import get_Pauli_Z, J_matrix, FullyConnected_TFIM 
 from Density_matrix import trace_1
 
 
