@@ -107,7 +107,7 @@ def run_simulation(h_val, seed):
 
     # normalize to [0,1] and add regularization noise U[-sigma_noise, sigma_noise]
     X_train = (X_train + 1) / 2
-    X_train += local_rng.uniform(-sigma_noise, sigma_noise, X_train.shape)
+    X_train += NOISE
 
     # Ridge model prevents ill-conditioned weights and feedback explosion
     model = Ridge(alpha=1e-4).fit(X_train, y_train)
