@@ -25,6 +25,35 @@ def J_matrix(N, K_min, K_max, rng):
     np.fill_diagonal(j_sym, 0)
     return j_sym
 
+# --- power law dependence with kac factor and PBC ---
+def J_matrix_alpha(N, K_min, K_max, alpha, rng, pbcs=True, use_kac=True):
+    """
+    Generates a symmetric all-to-all coupling matrix with power-law decay.
+    Supports Open (OBC) and Periodic Boundary Conditions (PBC).
+    """
+    j_raw = rng.uniform(K_min, K_max, (N, N))
+    j_sym = (j_raw + j_raw.T) / 2.0
+
+    idx = np.arange(N)
+    dist = np.abs(idx[:, None] - idx[None, :])
+
+    # 1. Apply Periodic Boundary Conditions if requested
+    if pbcs:
+        dist = np.minimum(dist, N - dist)
+
+    # 2. Compute Power-Law Decay
+    with np.errstate(divide='ignore'):
+        decay = np.where(dist > 0, 1.0 / (dist ** alpha), 0.0)
+
+    # 3. Apply Kac Normalization
+    if use_kac:
+        # Sum of a single row gives the total coupling strength per site
+        kac_factor = np.sum(decay[0]) 
+        decay = decay / kac_factor
+
+    j_sym *= decay
+    return j_sym
+
 # --- Optimized Operator Generation ---
 # Spin 1/2
 def get_Pauli_X_L_R(N):
@@ -236,19 +265,24 @@ def Ising(N, K, h, rng, x_ops=None, z_ops=None, disorder=False, D=0):
 
 # ---- hamiltonians ----
 ## ---- 1. Fully connected transverse field Ising spins ----
+import numpy as np
+import scipy.sparse as sp
+
 def FullyConnected_TFIM(N, J, h):
     """
     Constructs the Fully Connected (All-to-All) Transverse Field Ising Model 
     Hamiltonian using sparse matrices.
     
-    H = sum_{i < j} J_{ij} * X_i * X_j + h * sum_i Z_i
+    H = sum_{i < j} J_{ij} * X_i * X_j + sum_i h_i * Z_i
     
     Parameters:
         N (int): Number of spin-1/2 sites
         J (float or 2D ndarray): Interaction coupling. 
             - If float: Uniform coupling J applied to all pairs (i, j).
             - If 2D ndarray of shape (N, N): Site-dependent matrix J[i, j].
-        h (float): Uniform transverse field strength along the z-axis.
+        h (float or 1D ndarray): Transverse field strength along the z-axis.
+            - If float: Uniform field h applied to all sites i.
+            - If 1D ndarray of shape (N,): Site-dependent field h[i] for each site i.
         
     Returns:
         H (csr_matrix): Sparse Hamiltonian of shape (2^N, 2^N)
@@ -262,15 +296,21 @@ def FullyConnected_TFIM(N, J, h):
     else:
         J_matrix = np.asarray(J, dtype=np.float64)
 
-    # 1. DIAGONAL ELEMENTS (Transverse Field: h * sum_i Z_i)
-    # -----------------------------------------------------------
-    # Mapping: Bit 0 -> 1, Bit 1 -> -1
-    sz_sum = np.zeros(dims, dtype=np.float64)
-    for pos in range(N):
-        spin_dir = 1 - 2*((states >> pos) & 1)
-        sz_sum += spin_dir
+    # Standardise h into an (N,) array if given as a scalar
+    if np.isscalar(h):
+        h_array = np.full(N, h, dtype=np.float64)
+    else:
+        h_array = np.asarray(h, dtype=np.float64)
+        if h_array.shape != (N,):
+            raise ValueError(f"Array h must have shape ({N},), but got {h_array.shape}")
 
-    diag_values = h * sz_sum
+    # 1. DIAGONAL ELEMENTS (Transverse Field: sum_i h_i * Z_i)
+    # -----------------------------------------------------------
+    # Mapping: Bit 0 -> +1, Bit 1 -> -1
+    diag_values = np.zeros(dims, dtype=np.float64)
+    for pos in range(N):
+        spin_dir = 1 - 2 * ((states >> pos) & 1)
+        diag_values += h_array[pos] * spin_dir
 
     # 2. OFF-DIAGONAL ELEMENTS (All-to-All Interaction: sum_{i < j} J_{ij} X_i X_j)
     # ---------------------------------------------------------------------------------
