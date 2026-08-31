@@ -1,9 +1,6 @@
 # This file performs a scan over some parameter evaluating the performance metric C (capacity) for Linear Memory 10 and NARMA 10 tasks.
-# You can put the model Hamiltonian of your choice.
-# Changes in the test file:(0) globally RHO_INIT is defined and the function copies that rho = RHO_INIT.copy();
-# (1) adding extract features; (2) taking obs_matrix construction outside of the simulation funciton and correcting o.flatten() to o.conj().flatten(); 
-# (3) adding xx_obs and yy_obs; (4) adding if __name__ == "__main__": ; and (5) output dir and output file etc. 
-# Also changed the Hamiltonian to FullyConnected_TFIM
+# with disorder in magnetic field as well: h_i = h_val + D_i;, D_i in [-W,W].
+# cvw
 
 import resource
 import os
