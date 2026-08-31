@@ -176,6 +176,7 @@ if __name__ == "__main__":
         n_spins=N,
         J_val=J,
         tau_val=tau,
+        alpha = alpha,
         n_realizations=n_realizations,
         model="fully connected transverse field ising model; H = sum_ij J_ij X_i X_j + h sum_i Z_i; J_ij in U(-J_val/2,J_val/2)."
     )
