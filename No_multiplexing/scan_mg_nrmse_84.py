@@ -125,17 +125,18 @@ def run_simulation(h_val, seed):
     diff = []
     for i in range(num_test_seq):
         rho = RHO_INIT.copy()
-        rho = teacher_force(rho, s_test[i,:teacher_force_len])
-        x_features = (np.real(obs_matrix @ rho.flatten()) + 1) / 2
-        pred_val = model.predict(x_features.reshape(1,-1))[0]
+        rho = teacher_force(rho, s_test[i,:teacher_force_len-1])
+        input_signal = s_test[i,teacher_force_len]
+        pred_val = 0
         for _ in range(test_len-1):
-            rho = evolve(input_map(rho, pred_val, N), phase_mat)
+            rho = evolve(input_map(rho, input_signal, N), phase_mat)
             x_features = (np.real(obs_matrix @ rho.flatten()) + 1) / 2
             pred_val = model.predict(x_features.reshape(1,-1))[0]
 
             # Clip predictions to prevent numerical divergence in feedback loop
             pred_val = np.clip(pred_val, 0, 1)
-
+            input_signal = pred_val
+            
         pred_val = (pred_val * (max - min)) + min   # converting back to the original coordinates
         diff.append(y_target_84[i]-pred_val)
 
@@ -150,9 +151,9 @@ def run_simulation(h_val, seed):
 if __name__ == "__main__":
     start_time = time.time()
 
-    #h_values = np.logspace(-2, 2, 60)*0.5
-    h_values = [0.5e-1]
-    n_realizations = 64 # usually 100
+    h_values = np.logspace(-2, 2, 41)*0.5
+    #h_values = [0.5e-1]
+    n_realizations = 38 # usually 100
     seed_values = range(n_realizations)
 
     n_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK', 1))
@@ -196,6 +197,6 @@ if __name__ == "__main__":
     usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
     # Convert to Megabytes or Gigabytes
-    print(f"--- Resource Usage Report ---")
+    print(f"--- Resource Usage Report (scan_mg_nrmse) ---")
     print(f"Peak Memory Usage: {usage / 1024:.2f} MB")
     print(f"Grid Search Finished in {time.time() - start_time:.2f} seconds.")

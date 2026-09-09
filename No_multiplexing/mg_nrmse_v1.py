@@ -51,7 +51,7 @@ y_target_84 = (s_test[:,-1] * (max - min)) + min
 
 
 # ---- 2. parameters, observables, hamiltonian, functions, initial state ----
-N, J, h_val, tau = 10, 1, 0.5e-1, 10
+N, J, h_val, tau = 7, 1, 0.5e-1, 10
 dims = 2**N
 J_ij = J_matrix(N,-J/2,J/2,rng)
 Hamiltonian = FullyConnected_TFIM(N,J_ij,h_val)  # PUT YOU HAMILTONIAN HERE!
@@ -126,17 +126,17 @@ print("Training Complete.")
 diff = []
 for i in range(num_test_seq):
     rho = RHO_INIT.copy()
-    rho = teacher_force(rho, s_test[i,:teacher_force_len])
-    x_features = (np.real(obs_matrix @ rho.flatten()) + 1) / 2
-    pred_val = model.predict(x_features.reshape(1,-1))[0]
-    for j in range(test_len-1):
-        rho = evolve(input_map(rho, pred_val, N), phase_mat)
+    rho = teacher_force(rho, s_test[i,:teacher_force_len-1])
+    input_signal = s_test[i,teacher_force_len]
+    pred_val = 0
+    for j in range(test_len):
+        rho = evolve(input_map(rho, input_signal, N), phase_mat)
         x_features = (np.real(obs_matrix @ rho.flatten()) + 1) / 2
         pred_val = model.predict(x_features.reshape(1,-1))[0]
 
         # Clip predictions to prevent numerical divergence in feedback loop
         pred_val = np.clip(pred_val, 0, 1)
-
+        input_signal = pred_val
     pred_val = (pred_val * (max - min)) + min   # converting back to the original coordinates
     diff.append(y_target_84[i]-pred_val)
 
@@ -160,12 +160,12 @@ output_dir = "Data/mg/nrmse"
 os.makedirs(output_dir, exist_ok=True)
 
 output_file = os.path.join(output_dir, f"nrmse_84_v1_{seed}.npz")
-np.savez_compressed(
-    output_file,
-    nrmse = nrmse,
-    model = 'fully connected tfim',
-    n_spins = N,
-    J_ij = J_ij,
-    h_val = h_val,
-    tau = tau
-)
+#np.savez_compressed(
+#    output_file,
+#    nrmse = nrmse,
+#    model = 'fully connected tfim',
+#    n_spins = N,
+#    J_ij = J_ij,
+#    h_val = h_val,
+#    tau = tau
+#)
