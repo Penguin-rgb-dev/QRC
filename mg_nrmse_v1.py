@@ -1,12 +1,11 @@
-# This code does the mg task as done in the 2017 paper by Fujii and Nakajima. It trains on the first 1000 steps (after a washout of 1000 steps added by me)
-# and then autonomously predicts the last 2000 steps
-# all of these 2000 steps are compared with those of the original series to calculate the nmse.
-# Here we have added the use of ridge regression and output clipping to deal with the unreported anomalies.
+# this code trains for the mg time series prediction task and tests using 20 sequences of length 1084 
+# to evaluate the normalised root mean squared error of the 84th step prediction (nrmse84).
+# version 1: uses 1. linear rescale to [0,1]; 2. input map s in [0,1]; 3. normalization of x_features to [0,1]; 4. cliping pred value to [0,1].
 
-# ---- 0. IMPORTS ----
-import os
+# imports
 import time
 import tracemalloc
+import os
 import numpy as np
 from scipy.linalg import eigh
 from sklearn.linear_model import Ridge
@@ -18,9 +17,9 @@ start_time = time.perf_counter()
 seed = 42
 rng = np.random.default_rng(seed)
 
-# ---- 1. DATA GENERATION ----
-discard, washout_len, train_len, test_len = 1000, 1000, 10000, 2000
-sigma, tau_MG, total_mg_steps = 0.1, 17, (discard + washout_len + train_len + test_len)*10
+# ---- 1. GENERATE MG SERIES DATA ----
+discard_len, washout_len, train_len, teacher_force_len, test_len, num_test_seq = 1000, 1000, 2000, 1000, 84, 20
+sigma, tau_MG, total_mg_steps = 0.1, 17, (washout_len + train_len + num_test_seq * (teacher_force_len + test_len) + discard_len)*10
 A = np.zeros(total_mg_steps)
 A[0] = 1.2
 delay_idx = int(tau_MG / sigma)
@@ -29,21 +28,29 @@ for i in range(total_mg_steps - 1):
     delayed_val = A[i - delay_idx] if i >= delay_idx else 1.2
     A[i + 1] = A[i] + sigma * ((0.2 * delayed_val) / (1.0 + delayed_val**10) - 0.1 * A[i])
 
-# Subsample (every 10th point) and discard initial transient
-A = A[10000:]
-y = A[::10]
+# discard initial transient and subsample (every 10th point).
+A = A[discard_len*10:]
+s_raw = A[::10]
 
-# Min-Max Normalization to [0, 1]
-y = (y - np.min(y)) / (np.max(y) - np.min(y))
-print(f"Dataset normalized. y_min = {np.min(y):.4f}, y_max = {np.max(y):.4f}")
+# variance
+var = np.var(s_raw)
 
-# Input/Target partitioning
-s_washout = y[:washout_len -1]
-s_train = y[washout_len - 1 : washout_len + train_len - 1]
-y_train = y[washout_len : washout_len + train_len]
-y_target = y[washout_len + train_len : washout_len + train_len + test_len]
+# normalizing to [0,1]
+min, max = np.min(s_raw), np.max(s_raw)
+s_raw = (s_raw - min) / (max - min)
+print(f's_min = {np.min(s_raw):.4f}, s_max = {np.max(s_raw):.4f}')
 
-# ---- 2. PARAMETERS, OBSERVABLES, HAMILTONIAN, FUNCTIONS, INITIAL STATE ----
+# defining washout, train, test data
+s_washout = s_raw[:washout_len-1]
+s_train = s_raw[washout_len-1 : washout_len + train_len-1]
+y_train = s_raw[washout_len : washout_len + train_len]
+s_test = s_raw[washout_len + train_len:].reshape(num_test_seq, teacher_force_len+test_len)
+
+# collecting the 84th step target values in the original coordinates
+y_target_84 = (s_test[:,-1] * (max - min)) + min
+
+
+# ---- 2. parameters, observables, hamiltonian, functions, initial state ----
 N, J, h_val, tau = 7, 1, 0.5e-1, 10
 dims = 2**N
 J_ij = J_matrix(N,-J/2,J/2,rng)
@@ -96,17 +103,18 @@ def teacher_force(rho, s_in):
         rho = evolve(input_map(rho, val, N), phase_mat)
     return rho
 
-# ---- 3. RUN ----
+
+# ---- 3. training ----
 sigma_noise = 1e-5
 rho = RHO_INIT.copy()
 
 # washout
 rho = teacher_force(rho, s_washout)
 
-# training
+# train
 X_train, rho = extract_features(rho, s_train)
 
-# normalize to [0,1] and add regularization noise U[-sigma_noise, sigma_noise]
+# normalise and add regularization noise
 X_train = (X_train + 1) / 2
 X_train += rng.uniform(-sigma_noise, sigma_noise, X_train.shape)
 
@@ -114,53 +122,50 @@ X_train += rng.uniform(-sigma_noise, sigma_noise, X_train.shape)
 model = Ridge(alpha=1e-4).fit(X_train, y_train)
 print("Training Complete.")
 
-# test
-y_pred = np.zeros(test_len)
-input_signal = y_pred[-1]
+# ---- 4. testing ----
+diff = []
+for i in range(num_test_seq):
+    rho = RHO_INIT.copy()
+    rho = teacher_force(rho, s_test[i,:teacher_force_len-1])
+    input_signal = s_test[i,teacher_force_len]
+    pred_val = 0
+    for j in range(test_len):
+        rho = evolve(input_map(rho, input_signal, N), phase_mat)
+        x_features = (np.real(obs_matrix @ rho.flatten()) + 1) / 2
+        pred_val = model.predict(x_features.reshape(1,-1))[0]
 
-for i in range(test_len - 1):
-    rho = evolve(input_map(rho, input_signal, N), phase_mat)
-    x_features = (np.real(obs_matrix @ rho.flatten()) + 1) / 2
-    pred_val = model.predict(x_features.reshape(1,-1))[0]
-
-    # Clip predictions to prevent numerical divergence in feedback loop
-    pred_val = np.clip(pred_val, 0, 1)
-    y_pred[i] = pred_val
-
-    # Feedback loop: set current prediction as next step's input signal
-    input_signal = pred_val
+        # Clip predictions to prevent numerical divergence in feedback loop
+        pred_val = np.clip(pred_val, 0, 1)
+        input_signal = pred_val
+    pred_val = (pred_val * (max - min)) + min   # converting back to the original coordinates
+    diff.append(y_target_84[i]-pred_val)
 
 
-# ---- 4. EVALUATE NMSE ----
-nmse = np.mean((y_target - y_pred)**2) / np.mean(y_target**2)
+# ---- 5. NRMSE_84 and memory-time----
+diff = np.array(diff)
+nrmse = np.sqrt(np.mean(diff**2)/var)
 
-print("\n--- RESULTS ---")
-print(f"nmse: {nmse:.6e}")
-print(f"Prediction Range: [{y_pred.min():.4f}, {y_pred.max():.4f}]")
-
-# Save everything comprehensively
-output_dir = "Data/mg"
-os.makedirs(output_dir, exist_ok=True)
-
-output_file = os.path.join(output_dir, "mg_nmse.npz")
-np.savez_compressed(
-    output_file,
-    nmse = nmse,
-    pred = y_pred,
-    target = y_target,
-    # metadata
-    n_spins = N,
-    j_val = J,
-    h_val = h_val,
-    tau_val = tau,
-    model="fully connected transverse field ising model; H = sum_ij J_ij X_i X_j + h sum_i Z_i; J_ij in U(-J_val/2,J_val/2)."
-)
+print(f"nrmse_84 = {nrmse}")
 
 end_time = time.perf_counter()
 current, peak = tracemalloc.get_traced_memory()
 tracemalloc.stop()
 
-print("Simulation completed!")
 print(f"Total time: {end_time-start_time:.4f}s")
 print(f"Peak RAM: {peak/10**6:.2f} MB")
 print(f"Current RAM: {current/10**6:.2f} MB")
+
+# ---- 6. save the results ----
+output_dir = "Data/mg/nrmse"
+os.makedirs(output_dir, exist_ok=True)
+
+output_file = os.path.join(output_dir, f"nrmse_84_v1_{seed}.npz")
+#np.savez_compressed(
+#    output_file,
+#    nrmse = nrmse,
+#    model = 'fully connected tfim',
+#    n_spins = N,
+#    J_ij = J_ij,
+#    h_val = h_val,
+#    tau = tau
+#)

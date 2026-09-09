@@ -142,7 +142,7 @@ print(f"nmse: {nmse:.6e}")
 print(f"Prediction Range: [{y_pred.min():.4f}, {y_pred.max():.4f}]")
 
 # Save everything comprehensively
-output_dir = "data/mg"
+output_dir = "Data/mg"
 os.makedirs(output_dir, exist_ok=True)
 
 output_file = os.path.join(output_dir, "tm_mg_nmse.npz")

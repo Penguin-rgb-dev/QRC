@@ -47,11 +47,9 @@ dims = 2**N
 x_ops = get_Pauli_X(N)
 y_ops = get_Pauli_Y(N)
 z_ops = get_Pauli_Z(N)
-xx_ops = get_XX(N, x_ops)
-yy_ops = get_YY(N, y_ops)
 zz_ops = get_ZZ(N,z_ops)
 # We flatten observables into (n_obs, dim**2) to use dot products instead of Tr(rho @ O)
-raw_obs = x_ops + y_ops + z_ops + xx_ops + yy_ops + zz_ops
+raw_obs = x_ops + y_ops + z_ops + zz_ops
 obs_matrix = np.array([o.conj().flatten() for o in raw_obs])
 
 # maximally coherent initial state
@@ -125,9 +123,9 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau):
 if __name__ == "__main__":
     start_time = time.time()
 
-    #h_values = np.logspace(-2, 2, 60)*0.5
-    h_values = [0.5e-1]
-    n_realizations = 64 #100
+    h_values = np.logspace(-2, 2, 61)*0.5
+    #h_values = [0.5e-1]
+    n_realizations = 100 #100
     seed_values = range(n_realizations)
 
     n_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK', 1))
