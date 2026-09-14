@@ -39,7 +39,7 @@ y_train_linmem = y_LinMem[washout:washout+train]
 y_test_linmem = y_LinMem[washout+train:washout+train+test]
 
 # --- 2. Parameters, readout operators, initial state ---
-N, J, tau = 5, 1, 10
+N, J, tau = 5, 1/4, 10
 dims = 4**N
 x_ops = get_spin_operators(N,op_type="x",d=4,sparse=False)
 y_ops = get_spin_operators(N,op_type="y",d=4,sparse=False)
