@@ -49,3 +49,6 @@ for script in script1.py script2.py script3.py; do
 done
 
 # and put $1 in place of the file name in the slurm script.
+
+# To see the path of your current location
+pwd
