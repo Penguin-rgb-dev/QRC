@@ -473,7 +473,7 @@ def Heisenberg_1DNN_general(N, J, h, rng=None):
         # bit_diff == 0 (same) -> 1 | bit_diff == 1 (opposite) -> -1
         sz_sz_interaction += J_bonds[pos] * (1 - 2 * bit_diff)
 
-    # Field h_i S_i^z: bit 0 -> +0.5, bit 1 -> -0.5
+    # Field h_i Z_i: bit 0 -> +1, bit 1 -> -1
     sz_site_sum = np.zeros(dims, dtype=np.float64)
     for pos in range(N):
         spin_dir = 1 - 2*((states >> pos) & 1)
