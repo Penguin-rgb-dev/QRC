@@ -516,7 +516,175 @@ def Heisenberg_1DNN_general(N, J, h, rng=None):
     
     return H, J_bonds, h_sites
 
-## ---- 4. Heisenberg_spin_3/2 nearest neighbor ----
+## ---- 4. Spin hamiltonian with non-heisenberg terms (verified by hand for 3 spins)----
+def Spin_1DNN_general(N, J_z_z, J_plus_minus, J_z_p_m, J_p_m_z, J_p_p, h, rng=None):
+    """
+    Constructs the 1D Nearest-Neighbor Heisenberg Hamiltonian with periodic boundary 
+    conditions, supporting uniform or random/site-dependent J_i and h_i values. Strictly for N>2 spins.
+    
+    H =  sum_{<ij>} J^{z}_{ij} S^{z}_i S^{z}_j + J^{+-}_{ij}(S^{+}S^{-} + S^{-}S^{+}) + J^{z+/-}_{ij} S^{z} (S^{+} + S^{-})
+        J^{+/-z} (S^{+} + S^{-}) S^{z} + J^{++/--} (S^{+}S^{+} + S^{-}S^{-}) + sum_{i} h_{i} S^{z}_{i}
+    
+    Parameters:
+        N (int): Number of spin-1/2 sites.
+        J (float, tuple, or ndarray): 
+            - float: Uniform coupling J across all bonds.
+            - tuple (low, high): Uniform random J_i ~ U(low, high) drawn per bond.
+            - ndarray: Exact site-dependent coupling array of length N.
+        h (float, tuple, or ndarray): 
+            - float: Uniform field h across all sites.
+            - tuple (low, high): Uniform random h_i ~ U(low, high) drawn per site.
+            - ndarray: Exact site-dependent field array of length N.
+        rng (np.random.Generator, optional): Random number generator instance.
+        
+    Returns:
+        H (csr_matrix): Sparse Hamiltonian of shape (2^N, 2^N)
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    dims = 1 << N  # 2^N states
+    states = np.arange(dims, dtype=np.int32)
+
+    # --- Parse J_z_z_i couplings ---
+    if isinstance(J_z_z, tuple):
+        J_z_z = rng.uniform(J_z_z[0], J_z_z[1], N)
+    elif np.isscalar(J_z_z):
+        J_z_z = np.full(N, J_z_z, dtype=np.float64)
+    else:
+        J_z_z = np.asarray(J_z_z, dtype=np.float64)
+
+    # --- Parse J_plus_minus_i couplings ---
+    if isinstance(J_plus_minus, tuple):
+        J_plus_minus = rng.uniform(J_plus_minus[0], J_plus_minus[1], N)
+    elif np.isscalar(J_plus_minus):
+        J_plus_minus = np.full(N, J_plus_minus, dtype=np.float64)
+    else:
+        J_plus_minus = np.asarray(J_plus_minus, dtype=np.float64)
+
+    # --- Parse J_z_p_m_i couplings ---
+    if isinstance(J_z_p_m, tuple):
+        J_z_p_m = rng.uniform(J_z_p_m[0], J_z_p_m[1], N)
+    elif np.isscalar(J_z_p_m):
+        J_z_p_m = np.full(N, J_z_p_m, dtype=np.float64)
+    else:
+        J_z_p_m = np.asarray(J_z_p_m, dtype=np.float64)
+
+    # --- Parse J_p_m_z_i couplings ---
+    if isinstance(J_p_m_z, tuple):
+        J_p_m_z = rng.uniform(J_p_m_z[0], J_p_m_z[1], N)
+    elif np.isscalar(J_p_m_z):
+        J_p_m_z = np.full(N, J_p_m_z, dtype=np.float64)
+    else:
+        J_p_m_z = np.asarray(J_p_m_z, dtype=np.float64)
+
+    # --- Parse J_p_p_i couplings ---
+    if isinstance(J_p_p, tuple):
+        J_p_p = rng.uniform(J_p_p[0], J_p_p[1], N)
+    elif np.isscalar(J_p_p):
+        J_p_p = np.full(N, J_p_p, dtype=np.float64)
+    else:
+        J_p_p = np.asarray(J_p_p, dtype=np.float64)
+
+    # --- Parse h_i fields ---
+    if isinstance(h, tuple):
+        h_sites = rng.uniform(h[0], h[1], N)
+    elif np.isscalar(h):
+        h_sites = np.full(N, h, dtype=np.float64)
+    else:
+        h_sites = np.asarray(h, dtype=np.float64)
+
+    # 1. DIAGONAL ELEMENTS (Sz_i Sz_{i+1} + On-site h_i Sz_i)
+    # -----------------------------------------------------------
+    # Coupling Sz_i Sz_{i+1}: +0.25 (parallel) or -0.25 (antiparallel)
+    sz_sz_interaction = np.zeros(dims, dtype=np.float64)
+    for pos in range(N):
+        next_pos = (pos + 1) % N
+        bit_diff = ((states >> pos) ^ (states >> next_pos)) & 1
+        # bit_diff == 0 (same) -> 1 | bit_diff == 1 (opposite) -> -1
+        sz_sz_interaction += J_z_z[pos] * 0.25 * (1 - 2 * bit_diff)
+
+    # Field h_i Sz_i: bit 0 -> +0.5, bit 1 -> -0.5
+    sz_site_sum = np.zeros(dims, dtype=np.float64)
+    for pos in range(N):
+        spin_dir = 0.5 * (1 - 2*((states >> pos) & 1))
+        sz_site_sum += spin_dir * h_sites[pos]
+
+    diag_values = sz_sz_interaction + sz_site_sum
+
+    # 2. OFF-DIAGONAL ELEMENTS 
+    # -----------------------------------------------------------------------------------
+    # Spins flip ONLY when adjacent bits are opposite (bit_diff == 1)
+    rows_list = []
+    cols_list = []
+    data_list = []
+
+    # 2.1 Flip-flop: J_{+-} (S^{+}S^{-} + S^{-}S^{+})
+
+    for pos in range(N):
+        next_pos = (pos + 1) % N
+        bond_mask = (1 << pos) | (1 << next_pos)
+        
+        # Select states with opposite spins on this bond
+        opposite_spins = (((states >> pos) ^ (states >> next_pos)) & 1).astype(bool)
+        
+        rows = states[opposite_spins]
+        cols = states[opposite_spins] ^ bond_mask
+        
+        rows_list.append(rows)
+        cols_list.append(cols)
+        data_list.append(np.full(len(rows), J_plus_minus[pos], dtype=np.float64))
+
+    # 2.2 Single site flip: J_z_p_m S^{z}(S^{+} + S^{-}) + J_p_m_z (S^{+} + S^{-})S^{z}
+    for pos in range(N):
+        next_pos = (pos + 1) % N
+
+        # Term 1: S^z_i * (S^+_{i+1} + S^-_{i+1}) -> flips site (i+1) conditioned on Sz_i
+        site_mask_next = 1 << next_pos
+        spin_dir_i = (1 - 2 * ((states >> pos) & 1)) * 0.5
+
+        rows_list.append(states)
+        cols_list.append(states ^ site_mask_next)
+        data_list.append((J_z_p_m[pos] * spin_dir_i).astype(np.float64))
+
+        # Term 2: (S^+_i + S^-_i) * S^z_{i+1} -> flips site i conditioned on Z_{i+1}
+        site_mask_pos = 1 << pos
+        spin_dir_next = (1 - 2 * ((states >> next_pos) & 1)) * 0.5
+
+        rows_list.append(states)
+        cols_list.append(states ^ site_mask_pos)
+        data_list.append((J_p_m_z[pos] * spin_dir_next).astype(np.float64))    
+
+    # 2.3 Double site flip (the switch) (J{++/--}_{ij} (S^+ S^+ + S^- S^-))
+
+    for pos in range(N):
+        next_pos = (pos + 1) % N
+        bond_mask = (1 << pos) | (1 << next_pos)
+        same_spins = (1 - (((states >> pos) ^ (states >> next_pos)) & 1)).astype(bool)
+
+        rows = states[same_spins]
+        cols = states[same_spins] ^ bond_mask
+
+        rows_list.append(rows)
+        cols_list.append(cols)
+        data_list.append(np.full(len(rows), J_p_p[pos], dtype=np.float64))
+
+
+    all_rows = np.concatenate(rows_list)
+    all_cols = np.concatenate(cols_list)
+    off_diag_data = np.concatenate(data_list)
+
+    # 3. CONSTRUCT SPARSE CSR MATRIX
+    # ------------------------------
+    row_indices = np.concatenate([states, all_rows])
+    col_indices = np.concatenate([states, all_cols])
+    data = np.concatenate([diag_values, off_diag_data])
+
+    H = sp.csr_matrix((data, (row_indices, col_indices)), shape=(dims, dims))
+    
+    return H
+
+## ---- 5. Heisenberg_spin_3/2 nearest neighbor ----
 def heisenberg_spin_3_half(N, J_array, h_array, periodic=False):
     """
     Builds a spin-3/2 Heisenberg Hamiltonian with site-dependent J and magnetic field h.
