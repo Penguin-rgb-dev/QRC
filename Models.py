@@ -265,9 +265,6 @@ def Ising(N, K, h, rng, x_ops=None, z_ops=None, disorder=False, D=0):
 
 # ---- hamiltonians ----
 ## ---- 1. Fully connected transverse field Ising spins ----
-import numpy as np
-import scipy.sparse as sp
-
 def FullyConnected_TFIM(N, J, h):
     """
     Constructs the Fully Connected (All-to-All) Transverse Field Ising Model 
