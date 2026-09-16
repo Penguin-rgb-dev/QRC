@@ -122,9 +122,9 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau, alpha=alpha):
 if __name__ == "__main__":
     start_time = time.time()
 
-    #h_values = np.logspace(-2, 2, 60)*0.5
-    h_values = [0.5e-1]
-    n_realizations = 64 #100
+    h_values = np.logspace(-2, 2, 41)*0.5
+    #h_values = [0.5e-1]
+    n_realizations = 100 #100
     seed_values = range(n_realizations)
 
     n_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK') or os.cpu_count() or 1)

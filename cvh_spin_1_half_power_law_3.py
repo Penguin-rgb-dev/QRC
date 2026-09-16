@@ -39,7 +39,7 @@ y_trian_LinMem = y_LinMem[washout:washout+train]
 y_test_LinMem = y_LinMem[washout+train:washout+train+test]
 
 # --- 2. Parameters, readout operators, initial state, and the spin 1D basis ---
-N, J, tau, alpha = 10, 1, 10, 0
+N, J, tau, alpha = 10, 1, 10, 3.0
 dims = 2**N
 x_ops = get_Pauli_X(N)
 y_ops = get_Pauli_Y(N)
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     output_dir = "results"
     os.makedirs(output_dir, exist_ok=True)
   
-    output_file = os.path.join(output_dir, "power_law_fully_connected_tfim_cvh_0.npz")
+    output_file = os.path.join(output_dir, "power_law_fully_connected_tfim_cvh_3.npz")
     np.savez_compressed(
         output_file,
         h_values=h_values,
@@ -186,6 +186,6 @@ if __name__ == "__main__":
     usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
     # Convert to Megabytes or Gigabytes
-    print(f"--- Resource Usage Report (power law 0.0) ---")
+    print(f"--- Resource Usage Report (power law 3.0) ---")
     print(f"Peak Memory Usage: {usage / 1024:.2f} MB")
     print(f"\nGrid Search Finished in {time.time() - start_time:.2f} seconds.")
