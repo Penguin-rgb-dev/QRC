@@ -12,7 +12,7 @@ from joblib import Parallel, delayed
 import numpy as np
 from scipy.linalg import eigh
 from sklearn.linear_model import LinearRegression
-from Models import get_Pauli_X, get_Pauli_Y, get_Pauli_Z, get_XX, get_YY, get_ZZ, J_matrix, FullyConnected_TFIM 
+from Models import get_Pauli_X, get_Pauli_Y, get_Pauli_Z, get_XX, get_YY, get_ZZ, Spin_1DNN_general
 from Density_matrix import trace_1
 
 # ---- 1. Global data generation (linear memory task and NARMA) ---
@@ -42,14 +42,14 @@ y_trian_LinMem = y_LinMem[washout:washout+train]
 y_test_LinMem = y_LinMem[washout+train:washout+train+test]
 
 # --- 2. Parameters, readout operators, initial state, and the spin 1D basis ---
-N, J, tau = 10, 1, 10
+N, J, tau = 7, 1, 10
 dims = 2**N
 x_ops = get_Pauli_X(N)
 y_ops = get_Pauli_Y(N)
 z_ops = get_Pauli_Z(N)
 xx_ops = get_XX(N, x_ops)
 yy_ops = get_YY(N, y_ops)
-zz_ops = get_ZZ(N, z_ops)
+zz_ops = get_ZZ(N,z_ops)
 # We flatten observables into (n_obs, dim**2) to use dot products instead of Tr(rho @ O)
 raw_obs = x_ops + y_ops + z_ops + xx_ops + yy_ops + zz_ops
 obs_matrix = np.array([o.conj().flatten() for o in raw_obs])
@@ -63,8 +63,8 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau):
     local_rng = np.random.default_rng(seed)
     
     # --- 2.1. MODEL SETUP ---
-    J_ij = J_matrix(N,-J/2,J/2,local_rng)   
-    Hamiltonian = FullyConnected_TFIM(N,J_ij,h_val)   #PUT YOUR MODEL HAMILTONIAN HERE!
+    h_i = local_rng.uniform(low=-h_val, high=h_val, size=N)   
+    Hamiltonian = Spin_1DNN_general(N, J, J, J, J, J, h_i, local_rng)   #PUT YOUR MODEL HAMILTONIAN HERE!
     Hamiltonian = Hamiltonian.toarray()
     E, U = eigh(Hamiltonian)
     U_dag = U.conj().T
@@ -125,9 +125,9 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau):
 if __name__ == "__main__":
     start_time = time.time()
 
-    h_values = np.logspace(-2, 2, 61)*0.5
-    #h_values = [0.5e-1]
-    n_realizations = 100 #100
+    #h_values = np.logspace(-2, 2, 61)*0.5
+    h_values = [0.5e-1]
+    n_realizations = 32 #100
     seed_values = range(n_realizations)
 
     n_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK') or os.cpu_count() or 1)
@@ -160,10 +160,11 @@ if __name__ == "__main__":
     output_dir = "results"
     os.makedirs(output_dir, exist_ok=True)
   
-    output_file = os.path.join(output_dir, "fully_connected_tfim_cvh.npz")
+    output_file = os.path.join(output_dir, "non-heisenberg_cvh.npz")
     np.savez_compressed(
         output_file,
         h_values=h_values,
+        n_realizations=n_realizations,
         # Raw matrix outputs
         c_raw_LinMem=matrix_LinMem,
         c_raw_NARMA=matrix_NARMA,
@@ -177,17 +178,20 @@ if __name__ == "__main__":
         c_se_NARMA=c_se_NARMA,
         # Metadata
         n_spins=N,
-        J_val=J,
+        J_0=J,
+        J_1=J,
+        J_2=J,
+        J_3=J,
+        J_4=J,
         tau_val=tau,
-        n_realizations=n_realizations,
-        model="fully connected transverse field ising model; H = sum_ij J_ij X_i X_j + h sum_i Z_i; J_ij in U(-J_val/2,J_val/2)."
+        model="non-heisenberg model; H = sum_ij [J_0 SzSz + J_1 (S+S- + S-S+) + J_2 Sz(S+ + S-) + J_3 (S+ + S-)Sz + J_4 (S+S+ + S-S-)] + h sum_i Sz_i; J_i = 1, h_i in U[-h,h]."
     )
     print("Simulation complete. Final data saved.")
-    print(f"Grid Search Finished in {time.time() - start_time:.2f} seconds.")
+    
     # Get peak memory usage in kilobytes
     usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
     # Convert to Megabytes or Gigabytes
-    print(f"--- Resource Usage Report ---")
+    print(f"--- Resource Usage Report --- (non-heisenberg cvh)")
     print(f"Peak Memory Usage: {usage / 1024:.2f} MB")
-
+    print(f"\nGrid Search Finished in {time.time() - start_time:.2f} seconds.")
