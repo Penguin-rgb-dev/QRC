@@ -524,10 +524,18 @@ def Spin_1DNN_general(N, J_z_z, J_plus_minus, J_z_p_m, J_p_m_z, J_p_p, h, rng=No
     
     Parameters:
         N (int): Number of spin-1/2 sites.
-        J (float, tuple, or ndarray): 
+        J0 (float, tuple, or ndarray): 
             - float: Uniform coupling J across all bonds.
             - tuple (low, high): Uniform random J_i ~ U(low, high) drawn per bond.
             - ndarray: Exact site-dependent coupling array of length N.
+        J1 :
+            - same as J0    
+        J2 :
+            - same as J0
+        J3 :
+            - same as J0
+        J4 :
+            - same as J0
         h (float, tuple, or ndarray): 
             - float: Uniform field h across all sites.
             - tuple (low, high): Uniform random h_i ~ U(low, high) drawn per site.
