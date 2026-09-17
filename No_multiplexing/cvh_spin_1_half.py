@@ -130,7 +130,7 @@ if __name__ == "__main__":
     n_realizations = 100 #100
     seed_values = range(n_realizations)
 
-    n_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK', 1))
+    n_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK') or os.cpu_count() or 1)
     print(f"Running in parallel with {n_cpus} CPUs")
 
     results_flat = Parallel(n_jobs=n_cpus)(
