@@ -127,7 +127,7 @@ if __name__ == "__main__":
 
     #h_values = np.logspace(-2, 2, 61)*0.5
     h_values = [0.5e-1]
-    n_realizations = 32 #100
+    n_realizations = 64 #100
     seed_values = range(n_realizations)
 
     n_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK') or os.cpu_count() or 1)
@@ -194,4 +194,4 @@ if __name__ == "__main__":
     # Convert to Megabytes or Gigabytes
     print(f"--- Resource Usage Report --- (non-heisenberg cvh)")
     print(f"Peak Memory Usage: {usage / 1024:.2f} MB")
-    print(f"\nGrid Search Finished in {time.time() - start_time:.2f} seconds.")
+    print(f"Grid Search Finished in {time.time() - start_time:.2f} seconds.")
