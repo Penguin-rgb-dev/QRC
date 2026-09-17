@@ -42,7 +42,7 @@ y_trian_LinMem = y_LinMem[washout:washout+train]
 y_test_LinMem = y_LinMem[washout+train:washout+train+test]
 
 # --- 2. Parameters, readout operators, initial state, and the spin 1D basis ---
-N, J, tau = 7, 1, 10
+N, J, tau = 10, 1, 10
 dims = 2**N
 x_ops = get_Pauli_X(N)
 y_ops = get_Pauli_Y(N)
@@ -125,9 +125,9 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau):
 if __name__ == "__main__":
     start_time = time.time()
 
-    #h_values = np.logspace(-2, 2, 61)*0.5
-    h_values = [0.5e-1]
-    n_realizations = 64 #100
+    h_values = np.logspace(-2, 2, 41)*0.5
+    #h_values = [0.5e-1]
+    n_realizations = 100 #100
     seed_values = range(n_realizations)
 
     n_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK') or os.cpu_count() or 1)
