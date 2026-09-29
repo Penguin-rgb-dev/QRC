@@ -39,7 +39,7 @@ y_trian_LinMem = y_LinMem[washout:washout+train]
 y_test_LinMem = y_LinMem[washout+train:washout+train+test]
 
 # --- 2. Parameters, readout operators, initial state, and the spin 1D basis ---
-N, J, tau, alpha = 10, 1, 10, 0.5
+N, J, h_val, tau  = 10, 1, 1e-1, 10
 dims = 2**N
 x_ops = get_Pauli_X(N)
 y_ops = get_Pauli_Y(N)
@@ -55,7 +55,7 @@ obs_matrix = np.array([o.conj().flatten() for o in raw_obs])
 RHO_INIT = np.full((dims,dims), 1/dims, dtype=complex)  
 
 # --- 3. THE SIMULATION FUNCTION ---
-def run_simulation(h_val, seed, N=N,J=J,tau=tau, alpha=alpha):
+def run_simulation(alpha, seed, N = N, J = J, h_val = h_val, tau = tau):
     # Create a local RNG for this task
     local_rng = np.random.default_rng(seed)
     
@@ -122,22 +122,22 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau, alpha=alpha):
 if __name__ == "__main__":
     start_time = time.time()
 
-    #h_values = np.logspace(-2, 2, 60)*0.5
-    h_values = [0.5e-1]
-    n_realizations = 64 #100
+    alpha_values = np.linspace(0,8,41)
+    #alpha_values = [1]
+    n_realizations = 100 #100
     seed_values = range(n_realizations)
 
     n_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK') or os.cpu_count() or 1)
     print(f"Running in parallel with {n_cpus} CPUs")
 
     results_flat = Parallel(n_jobs=n_cpus)(
-            delayed(run_simulation)(h, seed) 
-            for h in h_values 
+            delayed(run_simulation)(alpha, seed) 
+            for alpha in alpha_values 
             for seed in seed_values
         )
 
-    # Reshape into (len(h_values), n_realizations, 2) because each run returns 2 outputs
-    results_matrix = np.array(results_flat).reshape(len(h_values), n_realizations, 2)
+    # Reshape into (len(alpha_values), n_realizations, 2) because each run returns 2 outputs
+    results_matrix = np.array(results_flat).reshape(len(alpha_values), n_realizations, 2)
 
     # Separate the tasks along the last axis
     matrix_LinMem = results_matrix[:, :, 0]
@@ -157,10 +157,11 @@ if __name__ == "__main__":
     output_dir = "results"
     os.makedirs(output_dir, exist_ok=True)
   
-    output_file = os.path.join(output_dir, "power_law_fully_connected_tfim_cvh.npz")
+    output_file = os.path.join(output_dir, "power_law_fully_connected_tfim_c_vs_alpha.npz")
     np.savez_compressed(
         output_file,
-        h_values=h_values,
+        n_realizations=n_realizations,
+        alpha_values=alpha_values,
         # Raw matrix outputs
         c_raw_LinMem=matrix_LinMem,
         c_raw_NARMA=matrix_NARMA,
@@ -175,9 +176,8 @@ if __name__ == "__main__":
         # Metadata
         n_spins=N,
         J_val=J,
+        h_val = h_val,
         tau_val=tau,
-        alpha = alpha,
-        n_realizations=n_realizations,
         model="fully connected transverse field ising model; H = sum_ij J_ij X_i X_j + h sum_i Z_i; J_ij in U(-J_val/2,J_val/2)."
     )
     print("Simulation complete. Final data saved.")
@@ -188,4 +188,4 @@ if __name__ == "__main__":
     # Convert to Megabytes or Gigabytes
     print(f"--- Resource Usage Report (power law cvh) ---")
     print(f"Peak Memory Usage: {usage / 1024:.2f} MB")
-    print(f"\nGrid Search Finished in {time.time() - start_time:.2f} seconds.")
+    print(f"Grid Search Finished in {time.time() - start_time:.2f} seconds.")
