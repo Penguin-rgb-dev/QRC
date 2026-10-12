@@ -60,7 +60,7 @@ def run_simulation(alpha, seed, N = N, J = J, h_val = h_val, tau = tau):
     local_rng = np.random.default_rng(seed)
     
     # --- 2.1. MODEL SETUP ---
-    J_ij = J_matrix_alpha(N, -J/2, J/2, alpha, local_rng)   
+    J_ij = J_matrix_alpha(N, -J/2, J/2, alpha, local_rng, use_kac=False)  # Generate J_ij matrix with power-law decay
     Hamiltonian = FullyConnected_TFIM(N,J_ij,h_val)   #PUT YOUR MODEL HAMILTONIAN HERE!
     Hamiltonian = Hamiltonian.toarray()
     E, U = eigh(Hamiltonian)
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     output_dir = "results"
     os.makedirs(output_dir, exist_ok=True)
   
-    output_file = os.path.join(output_dir, "power_law_fully_connected_tfim_c_vs_alpha.npz")
+    output_file = os.path.join(output_dir, "tfim_c_vs_alpha_no_kac.npz")
     np.savez_compressed(
         output_file,
         n_realizations=n_realizations,
@@ -180,12 +180,12 @@ if __name__ == "__main__":
         tau_val=tau,
         model="fully connected transverse field ising model; H = sum_ij J_ij X_i X_j + h sum_i Z_i; J_ij in U(-J_val/2,J_val/2)."
     )
-    print("Simulation complete. Final data saved.")
+    print("Simulation complete for c vs alpha with no kac normalisation. Final data saved.")
   
     # Get peak memory usage in kilobytes
     usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
     # Convert to Megabytes or Gigabytes
-    print(f"--- Resource Usage Report (power law cvh) ---")
+    print(f"--- Resource Usage Report ---")
     print(f"Peak Memory Usage: {usage / 1024:.2f} MB")
     print(f"Grid Search Finished in {time.time() - start_time:.2f} seconds.")
