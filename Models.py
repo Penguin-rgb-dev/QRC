@@ -369,7 +369,7 @@ def TFIM_1DNN(N, J, h):
     else:
         J_bonds = np.asarray(J, dtype=np.float64)
 
-    # 1. DIAGONAL ELEMENTS (Transverse Field: h * sum_i S_i^z)
+    # 1. DIAGONAL ELEMENTS (Transverse Field: h * sum_i Z_i^z)
     # -----------------------------------------------------------
     # Mapping: Bit 0 -> +1, Bit 1 -> -1
     sz_sum = np.zeros(dims, dtype=np.float64)
