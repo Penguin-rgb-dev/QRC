@@ -178,9 +178,10 @@ if __name__ == "__main__":
         J_val=J,
         h_val = h_val,
         tau_val=tau,
-        model="fully connected transverse field ising model; H = sum_ij J_ij X_i X_j + h sum_i Z_i; J_ij in U(-J_val/2,J_val/2)."
+        model="fully connected transverse field ising model; H = sum_ij J_ij X_i X_j + h sum_i Z_i; J_ij in U(-J_val/2,J_val/2).",
+        observables="Pauli X, Y, Z, and ZZ operators; no XX or YY operators.",
     )
-    print("Simulation complete for c vs alpha with no kac normalisation. Final data saved.")
+    print("Simulation complete for c vs alpha with no kac normalisation and no xx/yy normalisation. Final data saved.")
   
     # Get peak memory usage in kilobytes
     usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
