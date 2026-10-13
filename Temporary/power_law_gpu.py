@@ -39,7 +39,7 @@ y_train_LinMem = torch.tensor(y_LinMem[washout:washout+train], device=device, dt
 y_test_LinMem  = torch.tensor(y_LinMem[washout+train:washout+train+test], device=device, dtype=torch.float64)
 
 # --- 2. Parameters & Readout Operators ---
-N, J, h_val, tau = 10, 1, 1e-1, 10
+N, J, h_val, tau = 4, 1, 1e-1, 10
 dims = 2**N
 sub_dim = 2**(N - 1)
 
