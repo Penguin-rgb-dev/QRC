@@ -64,7 +64,7 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau):
     
     # --- 2.1. MODEL SETUP ---
     J_ij = local_rng.uniform(-J/2, J/2, size=N)   
-    Hamiltonian = TFIM_1DNN(N, J_ij, h_val)   #PUT YOUR MODEL HAMILTONIAN HERE!
+    Hamiltonian, _ = TFIM_1DNN(N, J_ij, h_val)   #PUT YOUR MODEL HAMILTONIAN HERE!
     Hamiltonian = Hamiltonian.toarray()
     E, U = eigh(Hamiltonian)
     U_dag = U.conj().T
