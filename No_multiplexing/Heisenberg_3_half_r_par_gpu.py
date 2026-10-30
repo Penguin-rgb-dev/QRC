@@ -214,7 +214,7 @@ if __name__ == "__main__":
 
     # sub_batch_size="auto" dynamically sizes the batch based on available VRAM
     r_results = gpu_batch_r_parameter_s32_m0(
-        N=8,
+        N=6,
         W_list=W_list,
         num_realizations=50,
         sub_batch_size="auto",
@@ -235,7 +235,7 @@ if __name__ == "__main__":
     # Save to CSV
     output_dir = "Data/r_parameter/Heisenberg"
     os.makedirs(output_dir, exist_ok=True) 
-    output_file = os.path.join(output_dir, "r_parameter_N8.csv")
+    output_file = os.path.join(output_dir, "r_parameter_N6.csv")
     
     with open(output_file, "w", newline="") as f:
         writer = csv.writer(f)
@@ -243,4 +243,4 @@ if __name__ == "__main__":
         for W, (r_mean, r_err) in r_results.items():
             writer.writerow([W, r_mean, r_err])
 
-    print("Saved to r_parameter_N8.csv")
+    print("Saved to r_parameter_N6.csv")

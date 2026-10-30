@@ -1,6 +1,9 @@
 # This file performs a scan over some parameter evaluating the performance metric C (capacity) for Linear Memory 10 and NARMA 10 tasks.
-# For Jij = J_ij / |i-j|^alpha
-
+# You can put the model Hamiltonian of your choice.
+# Changes in the test file:(0) globally RHO_INIT is defined and the function copies that rho = RHO_INIT.copy();
+# (1) adding extract features; (2) taking obs_matrix construction outside of the simulation funciton and correcting o.flatten() to o.conj().flatten(); 
+# (3) adding xx_obs and yy_obs; (4) adding if __name__ == "__main__": ; and (5) output dir and output file etc. 
+# Also changed the Hamiltonian to FullyConnected_TFIM
 
 import resource
 import os
@@ -9,7 +12,7 @@ from joblib import Parallel, delayed
 import numpy as np
 from scipy.linalg import eigh
 from sklearn.linear_model import LinearRegression
-from Models import get_Pauli_X, get_Pauli_Y, get_Pauli_Z, get_XX, get_YY, get_ZZ, J_matrix_alpha, FullyConnected_TFIM 
+from Models import get_Pauli_X, get_Pauli_Y, get_Pauli_Z, get_XX, get_YY, get_ZZ, J_matrix, FullyConnected_TFIM 
 from Density_matrix import trace_1
 
 # ---- 1. Global data generation (linear memory task and NARMA) ---
@@ -39,14 +42,14 @@ y_trian_LinMem = y_LinMem[washout:washout+train]
 y_test_LinMem = y_LinMem[washout+train:washout+train+test]
 
 # --- 2. Parameters, readout operators, initial state, and the spin 1D basis ---
-N, J, tau, alpha = 10, 1, 10, 1.0
+N, J, tau = 10, 1, 10
 dims = 2**N
 x_ops = get_Pauli_X(N)
 y_ops = get_Pauli_Y(N)
 z_ops = get_Pauli_Z(N)
 xx_ops = get_XX(N, x_ops)
 yy_ops = get_YY(N, y_ops)
-zz_ops = get_ZZ(N,z_ops)
+zz_ops = get_ZZ(N, z_ops)
 # We flatten observables into (n_obs, dim**2) to use dot products instead of Tr(rho @ O)
 raw_obs = x_ops + y_ops + z_ops + xx_ops + yy_ops + zz_ops
 obs_matrix = np.array([o.conj().flatten() for o in raw_obs])
@@ -55,12 +58,12 @@ obs_matrix = np.array([o.conj().flatten() for o in raw_obs])
 RHO_INIT = np.full((dims,dims), 1/dims, dtype=complex)  
 
 # --- 3. THE SIMULATION FUNCTION ---
-def run_simulation(h_val, seed, N=N,J=J,tau=tau, alpha=alpha):
+def run_simulation(h_val, seed, N=N,J=J,tau=tau):
     # Create a local RNG for this task
     local_rng = np.random.default_rng(seed)
     
     # --- 2.1. MODEL SETUP ---
-    J_ij = J_matrix_alpha(N, -J/2, J/2, alpha, local_rng)   
+    J_ij = J_matrix(N,-J/2,J/2,local_rng)   
     Hamiltonian = FullyConnected_TFIM(N,J_ij,h_val)   #PUT YOUR MODEL HAMILTONIAN HERE!
     Hamiltonian = Hamiltonian.toarray()
     E, U = eigh(Hamiltonian)
@@ -122,7 +125,7 @@ def run_simulation(h_val, seed, N=N,J=J,tau=tau, alpha=alpha):
 if __name__ == "__main__":
     start_time = time.time()
 
-    h_values = np.logspace(-2, 2, 41)*0.5
+    h_values = np.logspace(-2, 2, 61)*0.5
     #h_values = [0.5e-1]
     n_realizations = 100 #100
     seed_values = range(n_realizations)
@@ -157,7 +160,7 @@ if __name__ == "__main__":
     output_dir = "results"
     os.makedirs(output_dir, exist_ok=True)
   
-    output_file = os.path.join(output_dir, "power_law_fully_connected_tfim_cvh_2.npz")
+    output_file = os.path.join(output_dir, "fully_connected_tfim_cvh.npz")
     np.savez_compressed(
         output_file,
         h_values=h_values,
@@ -176,16 +179,15 @@ if __name__ == "__main__":
         n_spins=N,
         J_val=J,
         tau_val=tau,
-        alpha = alpha,
         n_realizations=n_realizations,
         model="fully connected transverse field ising model; H = sum_ij J_ij X_i X_j + h sum_i Z_i; J_ij in U(-J_val/2,J_val/2)."
     )
     print("Simulation complete. Final data saved.")
-  
+    print(f"Grid Search Finished in {time.time() - start_time:.2f} seconds.")
     # Get peak memory usage in kilobytes
     usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
     # Convert to Megabytes or Gigabytes
-    print(f"--- Resource Usage Report (power law 1.0) ---")
+    print(f"--- Resource Usage Report ---")
     print(f"Peak Memory Usage: {usage / 1024:.2f} MB")
-    print(f"\nGrid Search Finished in {time.time() - start_time:.2f} seconds.")
+
