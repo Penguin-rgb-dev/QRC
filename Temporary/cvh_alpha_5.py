@@ -39,7 +39,7 @@ y_trian_LinMem = y_LinMem[washout:washout+train]
 y_test_LinMem = y_LinMem[washout+train:washout+train+test]
 
 # --- 2. Parameters, readout operators, initial state, and the spin 1D basis ---
-N, J, tau, alpha = 10, 1, 10, 3.0
+N, J, tau, alpha = 10, 1, 10, 5.0
 dims = 2**N
 x_ops = get_Pauli_X(N)
 y_ops = get_Pauli_Y(N)
@@ -128,7 +128,7 @@ if __name__ == "__main__":
     seed_values = range(n_realizations)
 
     n_cpus = int(os.environ.get('SLURM_CPUS_PER_TASK') or os.cpu_count() or 1)
-    print(f"Running in parallel with {n_cpus} CPUs")
+    print(f"Running in parallel with {n_cpus} CPUs for alpha = {alpha}.")
 
     results_flat = Parallel(n_jobs=n_cpus)(
             delayed(run_simulation)(h, seed) 
