@@ -39,7 +39,7 @@ y_trian_LinMem = y_LinMem[washout:washout+train]
 y_test_LinMem = y_LinMem[washout+train:washout+train+test]
 
 # --- 2. Parameters, readout operators, initial state, and the spin 1D basis ---
-N, J, tau, alpha = 10, 1, 10, 6.0
+N, J, tau, alpha = 10, 1, 10, 10.0
 dims = 2**N
 x_ops = get_Pauli_X(N)
 y_ops = get_Pauli_Y(N)
